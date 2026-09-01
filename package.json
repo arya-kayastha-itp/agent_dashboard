@@ -1,0 +1,19 @@
+{
+  "name": "agent-dashboard",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "concurrently -n backend,frontend -c blue,green \"npm:dev --workspace backend\" \"npm:dev --workspace frontend\"",
+    "migrate": "npm run migrate --workspace backend",
+    "seed": "npm run seed --workspace backend",
+    "db:backup": "node scripts/backup-db.js",
+    "db:restore": "node scripts/restore-db.js"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}
