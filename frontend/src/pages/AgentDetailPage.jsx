@@ -7,12 +7,17 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { format } from 'date-fns';
 import { Link, useParams } from 'react-router-dom';
+import { computeAgentHealth } from '../agentHealth';
 import AgentUpdateForm from '../components/AgentUpdateForm';
 import HistoryChart from '../components/HistoryChart';
+import InfoTooltip from '../components/InfoTooltip';
+import InsightsPanel from '../components/InsightsPanel';
 import ProgressBar from '../components/ProgressBar';
 import StatusBadge from '../components/StatusBadge';
+import { HEALTH_LEVELS, HEALTH_LEVEL_META } from '../healthLevel';
 import { useAgentHistory } from '../hooks/useAgentHistory';
 import { useAgents } from '../hooks/useAgents';
+import { FIELD_LABELS } from '../labels';
 
 export default function AgentDetailPage() {
   const { id } = useParams();
@@ -20,6 +25,8 @@ export default function AgentDetailPage() {
   const { data: history, isLoading, isError } = useAgentHistory(id);
 
   const agent = agents?.find((a) => a.id === id);
+  const health = agent ? computeAgentHealth(agent) : null;
+  const healthMeta = health ? HEALTH_LEVEL_META[health.level] : null;
 
   return (
     <Box>
@@ -39,13 +46,16 @@ export default function AgentDetailPage() {
               )}
               {agent.assignedTo && (
                 <Typography variant="body2" color="text.secondary">
-                  Assigned to: {agent.assignedTo}
+                  {FIELD_LABELS.assignedTo}: {agent.assignedTo}
                 </Typography>
               )}
               {agent.eta && (
-                <Typography variant="body2" color="text.secondary">
-                  ETA: {agent.eta.slice(0, 10)}
-                </Typography>
+                <Stack direction="row" spacing={0.25} alignItems="center">
+                  <Typography variant="body2" color="text.secondary">
+                    {FIELD_LABELS.eta}: {format(new Date(agent.eta), 'PPP')}
+                  </Typography>
+                  <InfoTooltip title="The date this project is expected to be done" />
+                </Stack>
               )}
               {agent.lastUpdateAt && (
                 <Typography variant="body2" color="text.secondary">
@@ -55,6 +65,15 @@ export default function AgentDetailPage() {
             </Box>
             <StatusBadge status={agent.currentStatus} />
           </Stack>
+
+          {health && health.level !== HEALTH_LEVELS.NEUTRAL && (
+            <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mt: 1.5 }}>
+              <healthMeta.Icon fontSize="small" color={healthMeta.color} />
+              <Typography variant="body2" fontWeight={600} color={`${healthMeta.color}.main`}>
+                {health.level === HEALTH_LEVELS.HEALTHY ? 'This project is on track.' : health.reason}
+              </Typography>
+            </Stack>
+          )}
 
           <Box sx={{ mt: 2, maxWidth: 400 }}>
             <ProgressBar progress={agent.currentProgress} />
@@ -69,6 +88,8 @@ export default function AgentDetailPage() {
       )}
 
       {agent && <AgentUpdateForm agent={agent} />}
+
+      {agent && <InsightsPanel agentId={id} />}
 
       <Typography variant="h6" sx={{ mb: 1 }}>
         Progress History

@@ -1,21 +1,43 @@
 # Agent Dashboard
 
-Centralized dashboard for tracking the status/progress of AI agent workstreams. React + Express + PostgreSQL.
+Internal tool for tracking the status and progress of AI agent development workstreams, with a built-in FinOps module for monitoring API usage, cost, and reliability across those agents.
 
-## Prerequisites
+## Features
 
-- Node.js 20+
-- A PostgreSQL 13+ database (locally installed, or via Docker — see below)
+**Agent tracking**
+- Dashboard — grid of agent cards (status, assignee, ETA, progress bar), with a summary banner and health-based filtering
+- Add Agent — modal to create a new agent (name, description, assignee, status, ETA, progress)
+- Agent Detail — metadata, single-agent update form, progress-over-time chart, and per-agent API usage/cost stats
+- Daily Update Sheet — bulk editor to submit today's status/progress/notes for every agent at once (upserts, one entry per agent per day)
+- Update History — full history of updates across all agents
 
-## First-time setup
+**FinOps (cost & reliability)**
+- Cost & Reliability dashboard — usage/cost trend chart and totals (calls, cost, failed calls) across all agents
+- Usage ingestion API — single and batch endpoints for external apps to self-report token usage per call
+- Automatic cost calculation from effective-dated model pricing (no cost re-pricing of historical calls after a price change)
+- Alerts — auto-raised for expensive calls, high API/validation error rates, and usage on unpriced models; bell icon with live open-alert count
+- Pricing Admin (`/finops/pricing`) — manage model pricing (input/output $ per 1k tokens) with full history
+- Alert Rules (`/finops/thresholds`) — configure cost/error-rate thresholds globally or per agent
 
-1. Start Postgres (skip if you already have one running locally):
+## Tech Stack
+
+**Frontend** — React 19, Vite, React Router, MUI (Material UI), TanStack React Query, Axios, react-hook-form, Recharts, date-fns, oxlint
+
+**Backend** — Node.js, Express, Knex (query builder/migrations), PostgreSQL, Zod (validation), cors, dotenv, nodemon
+
+**Infra** — Docker Compose (PostgreSQL), npm workspaces monorepo (`backend` + `frontend`)
+
+## Steps to Run
+
+**Prerequisites**: Node.js 20+, and a PostgreSQL 13+ database (locally installed, or via Docker as below)
+
+1. Start Postgres:
 
    ```
    docker compose up -d
    ```
 
-2. Copy env files and adjust if needed:
+2. Copy env files:
 
    ```
    cp backend/.env.example backend/.env
@@ -43,31 +65,3 @@ Centralized dashboard for tracking the status/progress of AI agent workstreams. 
 
    - Backend: http://localhost:4000/api/health
    - Frontend: http://localhost:5174
-
-## Everyday use
-
-- **Dashboard** (`/`) — see all agents, click "Add Agent" to create a new one.
-- **Daily Update Sheet** (`/daily-sheet`) — fill in today's status/progress/notes for every agent at once; each submission is stored as a dated history record (one per agent per day — resubmitting the same day updates that day's entry rather than creating a duplicate).
-- **Agent detail** (click any agent card) — shows the progress-over-time chart built from daily history.
-
-## Backups
-
-Postgres data lives in a Docker named volume, which survives normal `docker compose stop`/`up`/`down` (without `-v`) — but `docker compose down -v` (or deleting the volume directly) wipes it permanently. To protect against that, take real file-based backups outside Docker:
-
-```
-npm run db:backup
-```
-
-Writes a timestamped `.sql` dump to `backups/` (gitignored — these are local files only). To restore the most recent backup:
-
-```
-npm run db:restore
-```
-
-Or restore a specific file: `npm run db:restore -- backups/agent_dashboard_2026-08-26T10-00-00-000Z.sql`. Restores are safe to re-run — the dump includes `DROP ... IF EXISTS` before recreating everything, so it won't error against an already-populated database.
-
-Run `npm run db:backup` periodically (e.g. before pulling schema changes, or just at the end of each day) since there's no automatic scheduling yet.
-
-## Notes for the next phase
-
-Agents currently report status manually via the Daily Update Sheet. The `agent_updates` table has a `source` column (`'manual'` today) and a single `recordUpdate()` service function (`backend/src/services/updates.service.js`) that any future automated ingestion (webhook/API from the agents themselves) can call directly — no schema change needed to wire that up later.

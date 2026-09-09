@@ -5,6 +5,7 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { Controller, useForm } from 'react-hook-form';
 import { STATUS_VALUES } from '../constants';
+import { FIELD_LABELS } from '../labels';
 
 const DEFAULT_VALUES = {
   name: '',
@@ -56,7 +57,7 @@ export default function AgentForm({ formId, onSubmit }) {
           />
 
           <TextField
-            label="ETA"
+            label={FIELD_LABELS.eta}
             type="date"
             fullWidth
             InputLabelProps={{ shrink: true }}
@@ -85,7 +86,8 @@ export default function AgentForm({ formId, onSubmit }) {
         </div>
 
         <TextField
-          label="Status Description"
+          label={FIELD_LABELS.statusDescription}
+          helperText="What's happening, in plain language"
           fullWidth
           multiline
           minRows={2}

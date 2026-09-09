@@ -1,5 +1,7 @@
 const agentsService = require('../services/agents.service');
 const updatesService = require('../services/updates.service');
+const insightsService = require('../services/insights.service');
+const aiNarrativeService = require('../services/ai-narrative.service');
 
 async function listAgents(req, res, next) {
   try {
@@ -66,4 +68,29 @@ async function getAgentHistory(req, res, next) {
   }
 }
 
-module.exports = { listAgents, getAgent, createAgent, updateAgent, deleteAgent, getAgentHistory };
+async function getAgentInsights(req, res, next) {
+  try {
+    const insights = await insightsService.getAgentInsights(req.params.id, { days: req.query.days });
+    if (!insights) {
+      return res.status(404).json({ error: { message: 'Agent not found', code: 'NOT_FOUND' } });
+    }
+    return res.json(insights);
+  } catch (err) {
+    return next(err);
+  }
+}
+
+async function regenerateAgentNarrative(req, res, next) {
+  try {
+    const insights = await insightsService.getAgentInsights(req.params.id, {});
+    if (!insights) {
+      return res.status(404).json({ error: { message: 'Agent not found', code: 'NOT_FOUND' } });
+    }
+    const text = await aiNarrativeService.generateNarrative(insights);
+    return res.json({ text, source: 'ai', model: 'claude-opus-5', generatedAt: new Date().toISOString() });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+module.exports = { listAgents, getAgent, createAgent, updateAgent, deleteAgent, getAgentHistory, getAgentInsights, regenerateAgentNarrative };

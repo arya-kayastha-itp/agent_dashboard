@@ -1,7 +1,10 @@
+import { useTheme } from '@mui/material/styles';
+import { format } from 'date-fns';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 export default function HistoryChart({ history }) {
-  const data = history.map((row) => ({ date: row.updateDate, progress: row.progress, status: row.status }));
+  const theme = useTheme();
+  const data = history.map((row) => ({ date: format(new Date(row.updateDate), 'MMM d'), progress: row.progress, status: row.status }));
 
   return (
     <ResponsiveContainer width="100%" height={280}>
@@ -9,8 +12,8 @@ export default function HistoryChart({ history }) {
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis dataKey="date" />
         <YAxis domain={[0, 100]} />
-        <Tooltip formatter={(v) => `${v}%`} />
-        <Line type="monotone" dataKey="progress" stroke="#1976d2" strokeWidth={2} dot />
+        <Tooltip formatter={(v) => `${v}% complete`} />
+        <Line type="monotone" dataKey="progress" stroke={theme.palette.primary.main} strokeWidth={2} dot />
       </LineChart>
     </ResponsiveContainer>
   );

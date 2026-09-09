@@ -1,13 +1,8 @@
 import Box from '@mui/material/Box';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
+import Paper from '@mui/material/Paper';
+import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import { format } from 'date-fns';
-import StatusBadge from './StatusBadge';
+import UpdateStoryRow from './UpdateStoryRow';
 
 export default function UpdateHistoryList({ history }) {
   const groups = [];
@@ -27,30 +22,13 @@ export default function UpdateHistoryList({ history }) {
           <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>
             {group.agentName}
           </Typography>
-          <TableContainer>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Date</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Progress</TableCell>
-                  <TableCell>Status Description</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {group.updates.map((update) => (
-                  <TableRow key={update.id}>
-                    <TableCell>{format(new Date(update.updateDate), 'PP')}</TableCell>
-                    <TableCell>
-                      <StatusBadge status={update.status} />
-                    </TableCell>
-                    <TableCell>{update.progress}%</TableCell>
-                    <TableCell>{update.statusDescription}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+          <Paper variant="outlined">
+            <Stack divider={<Box sx={{ borderBottom: 1, borderColor: 'divider' }} />}>
+              {group.updates.map((update) => (
+                <UpdateStoryRow key={update.id} update={update} />
+              ))}
+            </Stack>
+          </Paper>
         </Box>
       ))}
     </Box>

@@ -10,9 +10,13 @@ import Typography from '@mui/material/Typography';
 import { useState } from 'react';
 import { Link, Route, Routes } from 'react-router-dom';
 import AddAgentModal from './components/AddAgentModal';
+import AlertBell from './components/AlertBell';
 import AgentDetailPage from './pages/AgentDetailPage';
 import DailyUpdateSheetPage from './pages/DailyUpdateSheetPage';
 import DashboardPage from './pages/DashboardPage';
+import FinOpsPage from './pages/FinOpsPage';
+import PricingAdminPage from './pages/PricingAdminPage';
+import ThresholdsAdminPage from './pages/ThresholdsAdminPage';
 
 export default function App() {
   const [addAgentOpen, setAddAgentOpen] = useState(false);
@@ -31,6 +35,16 @@ export default function App() {
             <Button component={Link} to="/daily-sheet">
               Daily Update Sheet
             </Button>
+            <Button component={Link} to="/finops">
+              Cost &amp; Reliability
+            </Button>
+            <Button component={Link} to="/finops/pricing">
+              Pricing
+            </Button>
+            <Button component={Link} to="/finops/thresholds">
+              Alert Rules
+            </Button>
+            <AlertBell />
           </Stack>
         </Toolbar>
       </AppBar>
@@ -40,6 +54,9 @@ export default function App() {
           <Route path="/" element={<DashboardPage />} />
           <Route path="/daily-sheet" element={<DailyUpdateSheetPage />} />
           <Route path="/agents/:id" element={<AgentDetailPage />} />
+          <Route path="/finops" element={<FinOpsPage />} />
+          <Route path="/finops/pricing" element={<PricingAdminPage />} />
+          <Route path="/finops/thresholds" element={<ThresholdsAdminPage />} />
         </Routes>
       </Container>
 

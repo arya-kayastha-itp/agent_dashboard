@@ -1,13 +1,16 @@
 import MenuItem from '@mui/material/MenuItem';
 import Slider from '@mui/material/Slider';
+import Stack from '@mui/material/Stack';
 import TableCell from '@mui/material/TableCell';
 import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { STATUS_VALUES } from '../constants';
+import { HEALTH_LEVEL_META, statusToHealthLevel } from '../healthLevel';
 
 export default function DailySheetRow({ agent, value, carriedOver, onChange }) {
   const handleField = (field) => (event) => onChange({ ...value, [field]: event.target.value });
+  const { Icon: StatusIcon, color: statusColor } = HEALTH_LEVEL_META[statusToHealthLevel(value.status)];
 
   return (
     <TableRow>
@@ -17,18 +20,21 @@ export default function DailySheetRow({ agent, value, carriedOver, onChange }) {
         </Typography>
         {carriedOver && (
           <Typography variant="caption" color="text.secondary">
-            carried over — please confirm
+            Not updated yet today — please confirm below
           </Typography>
         )}
       </TableCell>
-      <TableCell sx={{ minWidth: 160 }}>
-        <TextField select fullWidth size="small" value={value.status} onChange={handleField('status')}>
-          {STATUS_VALUES.map((status) => (
-            <MenuItem key={status} value={status}>
-              {status}
-            </MenuItem>
-          ))}
-        </TextField>
+      <TableCell sx={{ minWidth: 180 }}>
+        <Stack direction="row" spacing={0.75} alignItems="center">
+          <StatusIcon fontSize="small" color={statusColor} />
+          <TextField select fullWidth size="small" value={value.status} onChange={handleField('status')}>
+            {STATUS_VALUES.map((status) => (
+              <MenuItem key={status} value={status}>
+                {status}
+              </MenuItem>
+            ))}
+          </TextField>
+        </Stack>
       </TableCell>
       <TableCell sx={{ minWidth: 160 }}>
         <Slider

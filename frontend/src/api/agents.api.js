@@ -28,3 +28,13 @@ export async function getAgentHistory(id, { from, to } = {}) {
   const { data } = await client.get(`/agents/${id}/history`, { params: { from, to } });
   return data;
 }
+
+export async function getAgentInsights(id, { days } = {}) {
+  const { data } = await client.get(`/agents/${id}/insights`, { params: { days } });
+  return data;
+}
+
+export async function regenerateAgentNarrative(id) {
+  const { data } = await client.post(`/agents/${id}/insights/narrative`);
+  return data;
+}

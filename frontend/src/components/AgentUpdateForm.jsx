@@ -10,6 +10,7 @@ import Typography from '@mui/material/Typography';
 import { useState } from 'react';
 import { STATUS_VALUES } from '../constants';
 import { useRecordUpdate } from '../hooks/useRecordUpdate';
+import { FIELD_LABELS } from '../labels';
 
 export default function AgentUpdateForm({ agent }) {
   const recordUpdate = useRecordUpdate();
@@ -65,7 +66,8 @@ export default function AgentUpdateForm({ agent }) {
           </div>
 
           <TextField
-            label="Status Description"
+            label={FIELD_LABELS.statusDescription}
+            helperText="What's happening, in plain language"
             fullWidth
             multiline
             minRows={2}
