@@ -8,13 +8,19 @@ import AgentCard from '../components/AgentCard';
 import DashboardSummaryBanner from '../components/DashboardSummaryBanner';
 import ErrorAlert from '../components/ErrorAlert';
 import Legend from '../components/Legend';
+import PortfolioInsightsPanel from '../components/PortfolioInsightsPanel';
 import { computeAgentHealth, summarizeAgents } from '../agentHealth';
+import { PERSONAS } from '../constants';
 import { useAgents } from '../hooks/useAgents';
+import { useAgentsInsightsSummary } from '../hooks/useInsights';
 import { usePageTitle } from '../hooks/usePageTitle';
+import { usePersona } from '../persona/PersonaContext';
 
 export default function DashboardPage() {
   usePageTitle('Dashboard');
+  const { persona } = usePersona();
   const { data: agents, isLoading, isError, refetch } = useAgents();
+  const { data: insightsSummary } = useAgentsInsightsSummary();
   const [healthFilter, setHealthFilter] = useState(null);
 
   const summary = useMemo(() => summarizeAgents(agents || []), [agents]);
@@ -40,6 +46,7 @@ export default function DashboardPage() {
       {agents && agents.length > 0 && (
         <>
           <DashboardSummaryBanner summary={summary} activeFilter={healthFilter} onFilterChange={setHealthFilter} />
+          {persona !== PERSONAS.AGENT_MANAGER && <PortfolioInsightsPanel />}
           <Legend />
         </>
       )}
@@ -52,7 +59,7 @@ export default function DashboardPage() {
         }}
       >
         {visibleAgents?.map((agent) => (
-          <AgentCard key={agent.id} agent={agent} />
+          <AgentCard key={agent.id} agent={agent} insights={insightsSummary?.byAgent?.[agent.id]} />
         ))}
       </Box>
     </Box>

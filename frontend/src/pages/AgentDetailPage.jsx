@@ -1,12 +1,13 @@
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
+import Breadcrumbs from '@mui/material/Breadcrumbs';
 import CircularProgress from '@mui/material/CircularProgress';
+import Link from '@mui/material/Link';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { format } from 'date-fns';
-import { Link, useParams } from 'react-router-dom';
+import { Link as RouterLink, useParams } from 'react-router-dom';
 import { computeAgentHealth } from '../agentHealth';
 import AgentUpdateForm from '../components/AgentUpdateForm';
 import ErrorAlert from '../components/ErrorAlert';
@@ -37,9 +38,14 @@ export default function AgentDetailPage() {
 
   return (
     <Box>
-      <Button component={Link} to="/" sx={{ mb: 2 }}>
-        &larr; Back to Dashboard
-      </Button>
+      <Box sx={{ position: 'sticky', top: 0, zIndex: 1, bgcolor: 'background.default', py: 1.5, mb: 1 }}>
+        <Breadcrumbs aria-label="breadcrumb">
+          <Link component={RouterLink} to="/" underline="hover" color="inherit">
+            Dashboard
+          </Link>
+          <Typography color="text.primary">{agent ? agent.name : 'Agent'}</Typography>
+        </Breadcrumbs>
+      </Box>
 
       {agent && (
         <Paper variant="outlined" sx={{ p: 3, mb: 3 }}>

@@ -2,7 +2,6 @@ const usageLogsService = require('./usage-logs.service');
 const agentsService = require('./agents.service');
 
 const LOOKBACK_DAYS_DEFAULT = 30;
-const TREND_PERIOD_DAYS = 7;
 // Don't flag anomalies without a few days of baseline to compare against —
 // same rationale as MIN_CALLS_FOR_RATE_ALERT in usage-logs.service.js.
 const ANOMALY_MIN_BASELINE_DAYS = 5;
@@ -36,9 +35,9 @@ function pctDelta(current, previous) {
   return round2(((current - previous) / previous) * 100);
 }
 
-function computeTrend(rows) {
-  const currentCutoff = daysAgo(TREND_PERIOD_DAYS);
-  const previousCutoff = daysAgo(TREND_PERIOD_DAYS * 2);
+function computeTrend(rows, periodDays = LOOKBACK_DAYS_DEFAULT) {
+  const currentCutoff = daysAgo(periodDays);
+  const previousCutoff = daysAgo(periodDays * 2);
 
   const currentRows = rows.filter((r) => new Date(r.day) >= currentCutoff);
   const previousRows = rows.filter((r) => new Date(r.day) >= previousCutoff && new Date(r.day) < currentCutoff);
@@ -47,8 +46,8 @@ function computeTrend(rows) {
   const previousTotals = computeTotals(previousRows);
 
   return {
-    current: { periodDays: TREND_PERIOD_DAYS, calls: currentTotals.calls, cost: currentTotals.cost, errorRate: currentTotals.errorRate },
-    previous: { periodDays: TREND_PERIOD_DAYS, calls: previousTotals.calls, cost: previousTotals.cost, errorRate: previousTotals.errorRate },
+    current: { periodDays, calls: currentTotals.calls, cost: currentTotals.cost, errorRate: currentTotals.errorRate },
+    previous: { periodDays, calls: previousTotals.calls, cost: previousTotals.cost, errorRate: previousTotals.errorRate },
     deltas: {
       callsPct: pctDelta(currentTotals.calls, previousTotals.calls),
       costPct: pctDelta(currentTotals.cost, previousTotals.cost),
@@ -103,11 +102,11 @@ function formatDay(day) {
   return new Date(day).toISOString().slice(0, 10);
 }
 
-function buildTrendSentence(trend) {
+function buildTrendSentence(trend, periodLabel = 'the prior week') {
   const { costPct } = trend.deltas;
-  if (costPct === null) return 'cost data is too new to compare against the prior week';
-  if (costPct === 0) return 'cost held flat versus the prior week';
-  return `cost is ${costPct > 0 ? 'up' : 'down'} ${Math.abs(costPct)}% versus the prior week`;
+  if (costPct === null) return `cost data is too new to compare against ${periodLabel}`;
+  if (costPct === 0) return `cost held flat versus ${periodLabel}`;
+  return `cost is ${costPct > 0 ? 'up' : 'down'} ${Math.abs(costPct)}% versus ${periodLabel}`;
 }
 
 function buildErrorSentence(stats) {
@@ -122,13 +121,15 @@ function buildAnomalySentence(anomalies) {
   return `${metricLabel} spiked on ${formatDay(latest.day)}, well above its recent baseline`;
 }
 
-function buildTemplatedNarrative({ agent, stats, trend, anomalies }) {
+function buildTemplatedNarrative({ agent, windowDays, stats, trend, anomalies }) {
   const sentences = [`${agent.name} is currently ${agent.currentStatus.toLowerCase()} at ${agent.currentProgress}%.`];
 
   if (stats.calls === 0) {
     sentences.push('No API usage has been logged yet for this agent.');
   } else {
-    sentences.push(`Over the last ${LOOKBACK_DAYS_DEFAULT} days it made ${stats.calls} calls costing $${stats.cost.toFixed(2)}, and ${buildTrendSentence(trend)}.`);
+    sentences.push(
+      `Over the last ${windowDays} days it made ${stats.calls} calls costing $${stats.cost.toFixed(2)}, and ${buildTrendSentence(trend, 'the prior month')}.`,
+    );
     sentences.push(`${buildErrorSentence(stats)}.`);
     sentences.push(`${buildAnomalySentence(anomalies)}.`);
   }
@@ -136,18 +137,38 @@ function buildTemplatedNarrative({ agent, stats, trend, anomalies }) {
   return sentences.join(' ');
 }
 
+function buildPortfolioNarrative({ agentCount, windowDays, stats, trend, anomalies }) {
+  const sentences = [`Portfolio snapshot across ${agentCount} agent${agentCount === 1 ? '' : 's'}.`];
+
+  if (stats.calls === 0) {
+    sentences.push('No API usage has been logged yet across any agent.');
+  } else {
+    sentences.push(
+      `Over the last ${windowDays} days the portfolio made ${stats.calls} calls costing $${stats.cost.toFixed(2)}, and ${buildTrendSentence(trend, 'the prior month')}.`,
+    );
+    sentences.push(`${buildErrorSentence(stats)}.`);
+    sentences.push(`${buildAnomalySentence(anomalies)}.`);
+  }
+
+  return sentences.join(' ');
+}
+
+// Trend is month-over-month (periodDays = windowDays), matching the "This
+// month" framing already used on the Dashboard's agent cards and the
+// portfolio panel — so rows are fetched across 2x the window to give the
+// "prior month" side of that comparison something to compare against.
 async function getAgentInsights(agentId, { days } = {}) {
   const windowDays = Number(days) > 0 ? Number(days) : LOOKBACK_DAYS_DEFAULT;
   const agent = await agentsService.getAgentById(agentId);
   if (!agent) return null;
 
-  const from = daysAgo(windowDays);
-  const rows = await usageLogsService.getUsageSummary({ agentId, from });
+  const allRows = await usageLogsService.getUsageSummary({ agentId, from: daysAgo(windowDays * 2) });
+  const currentRows = allRows.filter((r) => new Date(r.day) >= daysAgo(windowDays));
 
-  const stats = computeTotals(rows);
-  const trend = computeTrend(rows);
-  const anomalies = computeAnomalies(rows);
-  const narrative = buildTemplatedNarrative({ agent, stats, trend, anomalies });
+  const stats = computeTotals(currentRows);
+  const trend = computeTrend(allRows, windowDays);
+  const anomalies = computeAnomalies(currentRows);
+  const narrative = buildTemplatedNarrative({ agent, windowDays, stats, trend, anomalies });
 
   return {
     agentId,
@@ -166,4 +187,49 @@ async function getAgentInsights(agentId, { days } = {}) {
   };
 }
 
-module.exports = { getAgentInsights };
+// Aggregate insights across every agent, for the Dashboard's portfolio-wide
+// panel — same computation pipeline as getAgentInsights (including the
+// month-over-month trend), minus the single-agent snapshot.
+async function getPortfolioInsights({ days } = {}) {
+  const windowDays = Number(days) > 0 ? Number(days) : LOOKBACK_DAYS_DEFAULT;
+  const agents = await agentsService.listAgents({});
+  const allRows = await usageLogsService.getUsageSummary({ from: daysAgo(windowDays * 2) });
+  const currentRows = allRows.filter((r) => new Date(r.day) >= daysAgo(windowDays));
+
+  const stats = computeTotals(currentRows);
+  const trend = computeTrend(allRows, windowDays);
+  const anomalies = computeAnomalies(currentRows);
+  const narrative = buildPortfolioNarrative({ agentCount: agents.length, windowDays, stats, trend, anomalies });
+
+  return {
+    windowDays,
+    generatedAt: new Date().toISOString(),
+    agentCount: agents.length,
+    stats,
+    trend,
+    anomalies,
+    narrative: { text: narrative, source: 'template' },
+  };
+}
+
+// Per-agent totals for the Dashboard's agent cards, so an Executive can see
+// this month's calls/cost/error-rate at a glance without opening an agent —
+// one query for every agent instead of N+1 calls to getAgentInsights.
+async function getAgentsInsightsSummary({ days } = {}) {
+  const windowDays = Number(days) > 0 ? Number(days) : LOOKBACK_DAYS_DEFAULT;
+  const rows = await usageLogsService.getUsageTotalsByAgent({ from: daysAgo(windowDays) });
+
+  const byAgent = rows.reduce((acc, row) => {
+    const cost = Number(row.cost);
+    acc[row.agentId] = {
+      calls: row.calls,
+      cost: round2(cost),
+      errorRate: row.calls > 0 ? round2((row.errors / row.calls) * 100) : 0,
+    };
+    return acc;
+  }, {});
+
+  return { windowDays, byAgent };
+}
+
+module.exports = { getAgentInsights, getPortfolioInsights, getAgentsInsightsSummary };

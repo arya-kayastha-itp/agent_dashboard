@@ -1,5 +1,4 @@
 import MenuItem from '@mui/material/MenuItem';
-import Slider from '@mui/material/Slider';
 import Stack from '@mui/material/Stack';
 import TableCell from '@mui/material/TableCell';
 import TableRow from '@mui/material/TableRow';
@@ -7,6 +6,7 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { STATUS_VALUES } from '../constants';
 import { HEALTH_LEVEL_META, statusToHealthLevel } from '../healthLevel';
+import ProgressSlider from './ProgressSlider';
 
 export default function DailySheetRow({ agent, value, carriedOver, onChange }) {
   const handleField = (field) => (event) => onChange({ ...value, [field]: event.target.value });
@@ -36,15 +36,8 @@ export default function DailySheetRow({ agent, value, carriedOver, onChange }) {
           </TextField>
         </Stack>
       </TableCell>
-      <TableCell sx={{ minWidth: 160 }}>
-        <Slider
-          value={value.progress}
-          onChange={(_, v) => onChange({ ...value, progress: v })}
-          valueLabelDisplay="auto"
-          step={5}
-          min={0}
-          max={100}
-        />
+      <TableCell sx={{ minWidth: 240 }}>
+        <ProgressSlider value={value.progress} onChange={(v) => onChange({ ...value, progress: v })} size="small" />
       </TableCell>
       <TableCell sx={{ minWidth: 220 }}>
         <TextField

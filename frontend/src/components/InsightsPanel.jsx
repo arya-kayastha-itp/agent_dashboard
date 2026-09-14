@@ -1,19 +1,16 @@
-import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
 import TrendingFlatIcon from '@mui/icons-material/TrendingFlat';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
 import Divider from '@mui/material/Divider';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { format } from 'date-fns';
-import { useState } from 'react';
 import { formatCurrency, formatPercent } from '../formatters';
-import { useAgentInsights, useRegenerateNarrative } from '../hooks/useInsights';
+import { useAgentInsights } from '../hooks/useInsights';
 
 // Higher = "worse to see rising" for that metric — flips arrow color logic
 // between cost/error metrics (up is bad) and none of these have a "up is
@@ -52,17 +49,6 @@ function TrendDelta({ label, pct }) {
 
 export default function InsightsPanel({ agentId }) {
   const { data: insights, isLoading, isError } = useAgentInsights(agentId);
-  const { mutate: regenerate, isPending } = useRegenerateNarrative(agentId);
-  const [aiNarrative, setAiNarrative] = useState(null);
-  const [aiError, setAiError] = useState(null);
-
-  const handleRegenerate = () => {
-    setAiError(null);
-    regenerate(undefined, {
-      onSuccess: (data) => setAiNarrative(data),
-      onError: (err) => setAiError(err?.response?.data?.error?.message || 'Could not generate an AI summary.'),
-    });
-  };
 
   return (
     <Paper variant="outlined" sx={{ p: 3, mb: 3 }}>
@@ -108,7 +94,7 @@ export default function InsightsPanel({ agentId }) {
           ) : (
             <>
               <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                Last 7 days vs. prior 7 days
+                This month vs. last month
               </Typography>
               <Stack direction="row" spacing={4} flexWrap="wrap" useFlexGap sx={{ mb: 2 }}>
                 <TrendDelta label="Calls" pct={insights.trend.deltas.callsPct} />
@@ -136,27 +122,11 @@ export default function InsightsPanel({ agentId }) {
             Summary
           </Typography>
           <Typography variant="body2" sx={{ mb: 1 }}>
-            {aiNarrative?.text ?? insights.narrative.text}
+            {insights.narrative.text}
           </Typography>
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-            {aiNarrative ? `AI-generated · ${aiNarrative.model}` : 'Computed summary'}
+            Computed summary
           </Typography>
-
-          {aiError && (
-            <Alert severity="warning" sx={{ mb: 1 }}>
-              {aiError}
-            </Alert>
-          )}
-
-          <Button
-            size="small"
-            variant="outlined"
-            startIcon={isPending ? <CircularProgress size={14} /> : <AutoAwesomeIcon />}
-            disabled={isPending}
-            onClick={handleRegenerate}
-          >
-            {isPending ? 'Generating…' : 'Regenerate with AI'}
-          </Button>
         </>
       )}
     </Paper>

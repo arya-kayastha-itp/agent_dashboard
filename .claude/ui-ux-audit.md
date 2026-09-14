@@ -134,13 +134,31 @@ All frontend-only, no backend changes, no new design assets, no cross-team decis
 - [x] Removed unused `icons.svg`
 
 ### Medium effort (1-3 days)
-- Error + success handling on the pricing and threshold forms
-- Toast/Snackbar system replacing persistent inline alerts
-- Sorting + pagination on all three tables
-- Responsive nav collapse below ~900px
-- Breadcrumb trail on Agent Detail
-- Numeric input alongside each slider
-- Give the summary banner visual weight (tint or elevation) distinct from routine panels
+Top 3 (highest-severity) done, verified live with Playwright (build + lint clean):
+- [x] Error + success handling on the pricing and threshold forms — `AddPricingForm.jsx`, `ThresholdForm.jsx`
+      now report real success/failure instead of failing silently; also added `min` validation helper text
+      while touching these files
+- [x] Toast/Snackbar system replacing persistent inline alerts — new `ToastProvider.jsx` (mounted in
+      `main.jsx`), wired into the two pricing/threshold forms above plus `AgentUpdateForm.jsx` and
+      `DailyUpdateSheetPage.jsx` (both previously had success alerts that never auto-dismissed, and the
+      Daily Sheet submit had no error handling at all — fixed alongside)
+- [x] Responsive nav collapse below ~900px — `App.jsx` now collapses the nav buttons into a hamburger
+      `Menu` under MUI's `md` breakpoint, verified at 400px width with no horizontal overflow
+
+All Medium-effort items are now done:
+- [x] Sorting + pagination on Pricing and Thresholds tables (new `useSortableData.js` hook, `TablePagination`);
+      the Daily Sheet table got sorting only (by Agent) — pagination was skipped there deliberately, since it's
+      a live batch-edit-then-submit-once form and paginating it would fragment what gets submitted
+- [x] Breadcrumb trail on Agent Detail — `Breadcrumbs` component, made `position: sticky` so it docks at the
+      top of the viewport once the main app bar scrolls past (the original complaint was specifically that
+      wayfinding disappeared on scroll)
+- [x] Numeric input alongside each slider — new shared `ProgressSlider.jsx`, used in `AgentForm`,
+      `AgentUpdateForm`, and `DailySheetRow`
+- [x] Summary banner visual weight — subtle primary-tinted background + border on `DashboardSummaryBanner`,
+      distinct from the flat-outlined treatment every other panel uses
+
+Also: Portfolio Insights is now hidden from the Agent Manager persona's dashboard (still visible to
+Executive and FinOps) — the first explicit persona-gated UI element in the app.
 
 ### Larger investment (design-system level)
 - Add a rollup chart to the Dashboard home page (may need a new backend aggregate endpoint — check with

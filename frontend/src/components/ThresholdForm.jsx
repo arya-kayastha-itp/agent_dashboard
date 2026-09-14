@@ -7,6 +7,7 @@ import { ALERT_TYPES, ALERT_TYPE_LABELS } from '../constants';
 import { useAgents } from '../hooks/useAgents';
 import { useUpsertThreshold } from '../hooks/useThresholds';
 import InfoTooltip from './InfoTooltip';
+import { useToast } from './ToastProvider';
 
 const DEFAULT_VALUES = {
   agentId: '',
@@ -18,6 +19,7 @@ const DEFAULT_VALUES = {
 export default function ThresholdForm() {
   const { data: agents } = useAgents();
   const upsertThreshold = useUpsertThreshold();
+  const showToast = useToast();
   const {
     register,
     control,
@@ -31,13 +33,18 @@ export default function ThresholdForm() {
   const needsWindow = alertType !== 'expensive_call';
 
   const onSubmit = async (values) => {
-    await upsertThreshold.mutateAsync({
-      agentId: values.agentId || null,
-      alertType: values.alertType,
-      thresholdValue: Number(values.thresholdValue),
-      windowMinutes: needsWindow ? Number(values.windowMinutes) : null,
-    });
-    reset(DEFAULT_VALUES);
+    try {
+      await upsertThreshold.mutateAsync({
+        agentId: values.agentId || null,
+        alertType: values.alertType,
+        thresholdValue: Number(values.thresholdValue),
+        windowMinutes: needsWindow ? Number(values.windowMinutes) : null,
+      });
+      reset(DEFAULT_VALUES);
+      showToast(`Rule saved: ${ALERT_TYPE_LABELS[values.alertType]}.`, 'success');
+    } catch (err) {
+      showToast(err?.response?.data?.error?.message || 'Failed to save rule. Please try again.', 'error');
+    }
   };
 
   return (
@@ -79,6 +86,7 @@ export default function ThresholdForm() {
           inputProps={{ step: '0.01', min: 0 }}
           required
           error={Boolean(errors.thresholdValue)}
+          helperText={errors.thresholdValue?.type === 'min' ? 'Must be 0 or more' : ' '}
           {...register('thresholdValue', { required: true, min: 0 })}
         />
 
@@ -91,6 +99,7 @@ export default function ThresholdForm() {
               inputProps={{ step: '1', min: 1 }}
               required={needsWindow}
               error={Boolean(errors.windowMinutes)}
+              helperText={errors.windowMinutes?.type === 'min' ? 'Must be at least 1 minute' : ' '}
               {...register('windowMinutes', { required: needsWindow, min: 1 })}
             />
             <InfoTooltip title="How far back to look when checking the failure rate — e.g. 60 minutes means 'in the last hour'." />
@@ -98,7 +107,7 @@ export default function ThresholdForm() {
         )}
 
         <Button type="submit" variant="contained" disabled={upsertThreshold.isPending}>
-          Save Rule
+          {upsertThreshold.isPending ? 'Saving…' : 'Save Rule'}
         </Button>
       </Stack>
     </form>

@@ -1,11 +1,11 @@
 import MenuItem from '@mui/material/MenuItem';
-import Slider from '@mui/material/Slider';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { Controller, useForm } from 'react-hook-form';
 import { STATUS_VALUES } from '../constants';
 import { FIELD_LABELS } from '../labels';
+import ProgressSlider from './ProgressSlider';
 
 const DEFAULT_VALUES = {
   name: '',
@@ -72,16 +72,7 @@ export default function AgentForm({ formId, onSubmit }) {
           <Controller
             name="progress"
             control={control}
-            render={({ field }) => (
-              <Slider
-                value={field.value}
-                onChange={(_, value) => field.onChange(value)}
-                valueLabelDisplay="auto"
-                step={5}
-                min={0}
-                max={100}
-              />
-            )}
+            render={({ field }) => <ProgressSlider value={field.value} onChange={field.onChange} />}
           />
         </div>
 

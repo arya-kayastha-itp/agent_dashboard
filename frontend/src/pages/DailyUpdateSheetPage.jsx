@@ -9,13 +9,16 @@ import TableCell from '@mui/material/TableCell';
 import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
+import TableSortLabel from '@mui/material/TableSortLabel';
 import Typography from '@mui/material/Typography';
 import { useEffect, useMemo, useState } from 'react';
 import DailySheetRow from '../components/DailySheetRow';
 import ErrorAlert from '../components/ErrorAlert';
+import { useToast } from '../components/ToastProvider';
 import UpdateHistoryList from '../components/UpdateHistoryList';
 import { useAllUpdatesHistory, useTodayUpdates, useSubmitDailyUpdates } from '../hooks/useDailySheet';
 import { usePageTitle } from '../hooks/usePageTitle';
+import { useSortableData } from '../hooks/useSortableData';
 import { FIELD_LABELS } from '../labels';
 
 export default function DailyUpdateSheetPage() {
@@ -23,8 +26,14 @@ export default function DailyUpdateSheetPage() {
   const { data: rows, isLoading, isError, refetch } = useTodayUpdates();
   const { data: allHistory, isLoading: isHistoryLoading, isError: isHistoryError, refetch: refetchHistory } = useAllUpdatesHistory();
   const submitUpdates = useSubmitDailyUpdates();
+  const showToast = useToast();
   const [entries, setEntries] = useState({});
-  const [submitted, setSubmitted] = useState(false);
+
+  // Only "Agent" is sortable — Status/Progress/Notes are live-editable per
+  // row, and sorting by an in-progress edit would reorder the table under
+  // the user's cursor as they type.
+  const sortableRows = useMemo(() => (rows || []).map((r) => ({ ...r, agentName: r.agent.name })), [rows]);
+  const { sorted: sortedRows, orderBy, direction, handleSort } = useSortableData(sortableRows, { defaultOrderBy: 'agentName' });
 
   const carriedOverCount = useMemo(() => Object.values(entries).filter((e) => e.carriedOver).length, [entries]);
   const totalCount = Object.keys(entries).length;
@@ -44,7 +53,6 @@ export default function DailyUpdateSheetPage() {
   }, [rows]);
 
   const handleSubmit = async () => {
-    setSubmitted(false);
     const payload = {
       entries: Object.entries(entries).map(([agentId, value]) => ({
         agentId,
@@ -53,8 +61,12 @@ export default function DailyUpdateSheetPage() {
         statusDescription: value.statusDescription,
       })),
     };
-    await submitUpdates.mutateAsync(payload);
-    setSubmitted(true);
+    try {
+      await submitUpdates.mutateAsync(payload);
+      showToast("Today's updates saved.", 'success');
+    } catch (err) {
+      showToast(err?.response?.data?.error?.message || "Failed to save today's updates. Please try again.", 'error');
+    }
   };
 
   if (isLoading) {
@@ -84,20 +96,22 @@ export default function DailyUpdateSheetPage() {
         </Typography>
       )}
 
-      {submitted && <Alert severity="success" sx={{ mb: 2 }}>Today&apos;s updates saved.</Alert>}
-
       <TableContainer>
         <Table size="small">
           <TableHead>
             <TableRow>
-              <TableCell>Agent</TableCell>
+              <TableCell>
+                <TableSortLabel active={orderBy === 'agentName'} direction={direction} onClick={() => handleSort('agentName')}>
+                  Agent
+                </TableSortLabel>
+              </TableCell>
               <TableCell>Status</TableCell>
               <TableCell>Progress</TableCell>
               <TableCell>{FIELD_LABELS.statusDescription}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {rows?.map(({ agent }) =>
+            {sortedRows.map(({ agent }) =>
               entries[agent.id] ? (
                 <DailySheetRow
                   key={agent.id}

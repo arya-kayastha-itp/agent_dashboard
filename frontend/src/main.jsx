@@ -9,6 +9,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import App from './App.jsx'
+import { ToastProvider } from './components/ToastProvider.jsx'
 import './index.css'
 import { PersonaProvider } from './persona/PersonaContext.jsx'
 import theme from './theme.js'
@@ -22,7 +23,9 @@ createRoot(document.getElementById('root')).render(
         <CssBaseline />
         <BrowserRouter>
           <PersonaProvider>
-            <App />
+            <ToastProvider>
+              <App />
+            </ToastProvider>
           </PersonaProvider>
         </BrowserRouter>
       </ThemeProvider>

@@ -1,4 +1,5 @@
 import Paper from '@mui/material/Paper';
+import { alpha, useTheme } from '@mui/material/styles';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { HEALTH_LEVELS } from '../healthLevel';
@@ -16,12 +17,21 @@ function buildSummarySentence(summary) {
 }
 
 export default function DashboardSummaryBanner({ summary, activeFilter, onFilterChange }) {
+  const theme = useTheme();
   const handleToggle = (level) => {
     onFilterChange(activeFilter === level ? null : level);
   };
 
   return (
-    <Paper variant="outlined" sx={{ p: 3, mb: 3 }}>
+    <Paper
+      variant="outlined"
+      sx={{
+        p: 3,
+        mb: 3,
+        bgcolor: alpha(theme.palette.primary.main, 0.05),
+        borderColor: alpha(theme.palette.primary.main, 0.22),
+      }}
+    >
       <Typography variant="h5" sx={{ mb: 2 }}>
         {buildSummarySentence(summary)}
       </Typography>

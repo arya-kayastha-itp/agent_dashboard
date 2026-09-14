@@ -201,4 +201,30 @@ async function getUsageSummary({ agentId, from, to } = {}) {
   return rows;
 }
 
-module.exports = { ingestUsageLog, ingestBatch, listUsage, getUsageSummary, USAGE_LOG_COLUMNS };
+async function getUsageTotalsByAgent({ from, to } = {}) {
+  const conditions = [];
+  const bindings = [];
+  if (from) {
+    conditions.push('occurred_at >= ?');
+    bindings.push(from);
+  }
+  if (to) {
+    conditions.push('occurred_at <= ?');
+    bindings.push(to);
+  }
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
+  const { rows } = await db.raw(
+    `SELECT agent_id as "agentId",
+            count(*)::int as calls,
+            coalesce(sum(cost_usd), 0)::float8 as cost,
+            count(*) FILTER (WHERE status = 'error')::int as errors
+     FROM api_usage_logs
+     ${where}
+     GROUP BY 1`,
+    bindings,
+  );
+  return rows;
+}
+
+module.exports = { ingestUsageLog, ingestBatch, listUsage, getUsageSummary, getUsageTotalsByAgent, USAGE_LOG_COLUMNS };
