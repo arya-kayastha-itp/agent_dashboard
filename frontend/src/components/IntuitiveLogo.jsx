@@ -4,7 +4,7 @@ import Typography from '@mui/material/Typography';
 
 // Brand mark — a navy tile with a four-point "sparkle" star, drawn inline so
 // it scales cleanly instead of shipping a raster asset. Paired with the
-// "Intuitive.AI" wordmark wherever the product identifies itself.
+// "Agent Dashboard" wordmark wherever the product identifies itself.
 export default function IntuitiveLogo({ size = 34, withWordmark = true }) {
   const mark = (
     <Box
@@ -31,7 +31,7 @@ export default function IntuitiveLogo({ size = 34, withWordmark = true }) {
     <Stack direction="row" spacing={1.25} alignItems="center">
       {mark}
       <Typography sx={{ fontWeight: 700, letterSpacing: '-0.01em', fontSize: `${Math.round(size * 0.65)}px` }}>
-        Intuitive.AI
+        Agent Dashboard
       </Typography>
     </Stack>
   );

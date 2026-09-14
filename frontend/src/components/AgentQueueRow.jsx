@@ -8,25 +8,21 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
-import { computeAgentHealth } from '../agentHealth';
 import { STATUS_VALUES } from '../constants';
-import { HEALTH_LEVEL_META } from '../healthLevel';
 import { useRecordUpdate } from '../hooks/useRecordUpdate';
 import { FIELD_LABELS } from '../labels';
-import ProgressBar from './ProgressBar';
+import AgentSummaryRow from './AgentSummaryRow';
 import ProgressSlider from './ProgressSlider';
-import StatusBadge from './StatusBadge';
 import { useToast } from './ToastProvider';
 
-// One row in the Agent Manager's action queue — the health caption makes the
-// sort order legible, and "Update" expands an inline form so a single-agent
-// change never has to go through the full Daily Sheet.
-export default function AgentQueueRow({ agent }) {
+// One row in the Agent Manager's action queue. Shares its read-only shape
+// (icon, name, health caption, assignee, progress bar) with the Executive's
+// rows via AgentSummaryRow, and adds "Update" to expand an inline form so a
+// single-agent change never has to go through the full Daily Sheet.
+export default function AgentQueueRow({ agent, insight }) {
   const navigate = useNavigate();
   const recordUpdate = useRecordUpdate();
   const showToast = useToast();
-  const health = computeAgentHealth(agent);
-  const { Icon: HealthIcon, color: healthColor } = HEALTH_LEVEL_META[health.level];
 
   const [expanded, setExpanded] = useState(false);
   const [status, setStatus] = useState(agent.currentStatus);
@@ -58,38 +54,21 @@ export default function AgentQueueRow({ agent }) {
 
   return (
     <Box sx={{ px: { xs: 2, sm: 3 }, py: 2 }}>
-      <Stack direction="row" spacing={2} alignItems="center">
-        <HealthIcon fontSize="small" color={healthColor} sx={{ flexShrink: 0 }} />
-
-        <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-          <Stack direction="row" spacing={1} alignItems="center">
-            <Typography
-              variant="subtitle1"
-              onClick={() => navigate(`/agents/${agent.id}`)}
-              sx={{ cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
-            >
-              {agent.name}
-            </Typography>
-            <StatusBadge status={agent.currentStatus} />
-          </Stack>
-          <Typography variant="caption" color={`${healthColor}.main`}>
-            {health.reason}
-          </Typography>
-        </Box>
-
-        <Box sx={{ width: 180, flexShrink: 0, display: { xs: 'none', md: 'block' } }}>
-          <ProgressBar progress={agent.currentProgress} />
-        </Box>
-
-        <Button
-          size="small"
-          variant="outlined"
-          onClick={() => setExpanded((e) => !e)}
-          endIcon={<ExpandMoreIcon sx={{ transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />}
-        >
-          {expanded ? 'Close' : 'Update'}
-        </Button>
-      </Stack>
+      <AgentSummaryRow
+        agent={agent}
+        insight={insight}
+        onNameClick={() => navigate(`/agents/${agent.id}`)}
+        trailing={
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={() => setExpanded((e) => !e)}
+            endIcon={<ExpandMoreIcon sx={{ transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />}
+          >
+            {expanded ? 'Close' : 'Update'}
+          </Button>
+        }
+      />
 
       <Collapse in={expanded}>
         <Box component="form" onSubmit={handleSave} sx={{ mt: 2, p: 2, bgcolor: 'background.default', borderRadius: 2 }}>

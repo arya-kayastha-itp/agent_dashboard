@@ -14,6 +14,7 @@ import ErrorAlert from '../components/ErrorAlert';
 import { computeAgentHealth, sortBySeverity, summarizeAgents } from '../agentHealth';
 import { useAgents } from '../hooks/useAgents';
 import { useTodayUpdates } from '../hooks/useDailySheet';
+import { useAgentsInsightsSummary } from '../hooks/useInsights';
 import { usePageTitle } from '../hooks/usePageTitle';
 
 const FLAGGED_LEVELS = ['atRisk', 'attention'];
@@ -26,6 +27,7 @@ export default function AgentManagerHomePage() {
   usePageTitle('Home');
   const { data: agents, isLoading, isError, refetch } = useAgents();
   const { data: todayRows } = useTodayUpdates();
+  const { data: insightsSummary } = useAgentsInsightsSummary();
   const [healthFilter, setHealthFilter] = useState(null);
 
   const summary = useMemo(() => summarizeAgents(agents || []), [agents]);
@@ -102,7 +104,7 @@ export default function AgentManagerHomePage() {
                     </Typography>
                   )}
                   {idx > 0 && !sectionLabel && <Divider />}
-                  <AgentQueueRow agent={agent} />
+                  <AgentQueueRow agent={agent} insight={insightsSummary?.byAgent?.[agent.id]} />
                 </Box>
               );
             })}

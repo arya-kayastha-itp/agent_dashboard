@@ -1,15 +1,18 @@
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Breadcrumbs from '@mui/material/Breadcrumbs';
+import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
 import Link from '@mui/material/Link';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { format } from 'date-fns';
+import { useState } from 'react';
 import { Link as RouterLink, useParams } from 'react-router-dom';
 import { computeAgentHealth } from '../agentHealth';
 import AgentUpdateForm from '../components/AgentUpdateForm';
+import EditAgentModal from '../components/EditAgentModal';
 import ErrorAlert from '../components/ErrorAlert';
 import HistoryChart from '../components/HistoryChart';
 import InfoTooltip from '../components/InfoTooltip';
@@ -29,6 +32,7 @@ export default function AgentDetailPage() {
   const { data: agents } = useAgents();
   const { data: history, isLoading, isError, refetch } = useAgentHistory(id);
   const { persona } = usePersona();
+  const [editOpen, setEditOpen] = useState(false);
 
   const agent = agents?.find((a) => a.id === id);
   const health = agent ? computeAgentHealth(agent) : null;
@@ -75,6 +79,11 @@ export default function AgentDetailPage() {
                   Last updated: {format(new Date(agent.lastUpdateAt), 'PPP')}
                 </Typography>
               )}
+              {canEditAgents(persona) && (
+                <Button size="small" sx={{ mt: 1 }} onClick={() => setEditOpen(true)}>
+                  Edit Agent Details
+                </Button>
+              )}
             </Box>
             <StatusBadge status={agent.currentStatus} />
           </Stack>
@@ -101,6 +110,8 @@ export default function AgentDetailPage() {
       )}
 
       {agent && canEditAgents(persona) && <AgentUpdateForm agent={agent} />}
+
+      {agent && <EditAgentModal open={editOpen} onClose={() => setEditOpen(false)} agent={agent} />}
 
       {agent && <InsightsPanel agentId={id} />}
 
