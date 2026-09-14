@@ -45,7 +45,7 @@ export default function AlertBell() {
             key={alert.id}
             onClick={() => {
               setAnchorEl(null);
-              navigate('/finops');
+              navigate('/');
             }}
             sx={{ whiteSpace: 'normal' }}
           >
@@ -64,7 +64,7 @@ export default function AlertBell() {
           <MenuItem
             onClick={() => {
               setAnchorEl(null);
-              navigate('/finops');
+              navigate('/');
             }}
           >
             <Typography variant="body2" color="primary">

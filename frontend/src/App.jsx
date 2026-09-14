@@ -1,4 +1,5 @@
 import AddIcon from '@mui/icons-material/Add';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import MenuIcon from '@mui/icons-material/Menu';
 import AppBar from '@mui/material/AppBar';
 import Box from '@mui/material/Box';
@@ -12,17 +13,17 @@ import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import { useTheme } from '@mui/material/styles';
 import Toolbar from '@mui/material/Toolbar';
-import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useState } from 'react';
 import { Link, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import AddAgentModal from './components/AddAgentModal';
 import AlertBell from './components/AlertBell';
+import IntuitiveLogo from './components/IntuitiveLogo';
 import { PERSONA_LABELS } from './labels';
 import AgentDetailPage from './pages/AgentDetailPage';
+import AllAgentsPage from './pages/AllAgentsPage';
 import DailyUpdateSheetPage from './pages/DailyUpdateSheetPage';
-import DashboardPage from './pages/DashboardPage';
-import FinOpsPage from './pages/FinOpsPage';
+import HomePage from './pages/HomePage';
 import PersonaLoginPage from './pages/PersonaLoginPage';
 import PricingAdminPage from './pages/PricingAdminPage';
 import ThresholdsAdminPage from './pages/ThresholdsAdminPage';
@@ -40,6 +41,39 @@ function restricted(path, element) {
   );
 }
 
+function ConfigureMenu({ items }) {
+  const [anchorEl, setAnchorEl] = useState(null);
+  const location = useLocation();
+
+  if (items.length === 0) return null;
+
+  return (
+    <>
+      <Button
+        color="inherit"
+        onClick={(e) => setAnchorEl(e.currentTarget)}
+        endIcon={<ExpandMoreIcon sx={{ transform: anchorEl ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />}
+        sx={{ fontWeight: 400 }}
+      >
+        Configure
+      </Button>
+      <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
+        {items.map((item) => (
+          <MenuItem
+            key={item.path}
+            component={Link}
+            to={item.path}
+            selected={location.pathname === item.path}
+            onClick={() => setAnchorEl(null)}
+          >
+            {item.label}
+          </MenuItem>
+        ))}
+      </Menu>
+    </>
+  );
+}
+
 export default function App() {
   const [addAgentOpen, setAddAgentOpen] = useState(false);
   const [navMenuAnchor, setNavMenuAnchor] = useState(null);
@@ -54,6 +88,9 @@ export default function App() {
     navigate('/login');
   };
 
+  const primaryItems = NAV_ITEMS.filter((item) => item.visibleTo.includes(persona) && !item.configure);
+  const configureItems = NAV_ITEMS.filter((item) => item.visibleTo.includes(persona) && item.configure);
+
   return (
     <Box>
       <Routes>
@@ -64,17 +101,9 @@ export default function App() {
             <RequirePersona>
               <AppBar position="static" color="default" elevation={0} sx={{ borderBottom: 1, borderColor: 'divider' }}>
                 <Toolbar>
-                  <Stack
-                    direction="row"
-                    spacing={1}
-                    alignItems="center"
-                    component={Link}
-                    to="/"
-                    sx={{ flexGrow: 1, textDecoration: 'none', color: 'inherit' }}
-                  >
-                    <Box component="img" src="/favicon.svg" alt="" aria-hidden="true" sx={{ width: 26, height: 26 }} />
-                    <Typography variant="h6">Agent Dashboard</Typography>
-                  </Stack>
+                  <Box component={Link} to="/" sx={{ display: 'flex', flexGrow: 1, textDecoration: 'none', color: 'inherit' }}>
+                    <IntuitiveLogo />
+                  </Box>
                   <Stack direction="row" spacing={1} alignItems="center">
                     {isNarrow ? (
                       <>
@@ -86,7 +115,7 @@ export default function App() {
                           <MenuIcon />
                         </IconButton>
                         <Menu anchorEl={navMenuAnchor} open={Boolean(navMenuAnchor)} onClose={() => setNavMenuAnchor(null)}>
-                          {NAV_ITEMS.filter((item) => item.visibleTo.includes(persona)).map((item) => {
+                          {[...primaryItems, ...configureItems].map((item) => {
                             const isActive = location.pathname === item.path;
                             return (
                               <MenuItem
@@ -103,26 +132,29 @@ export default function App() {
                         </Menu>
                       </>
                     ) : (
-                      NAV_ITEMS.filter((item) => item.visibleTo.includes(persona)).map((item) => {
-                        const isActive = location.pathname === item.path;
-                        return (
-                          <Button
-                            key={item.path}
-                            component={Link}
-                            to={item.path}
-                            color={isActive ? 'primary' : 'inherit'}
-                            aria-current={isActive ? 'page' : undefined}
-                            sx={{
-                              fontWeight: isActive ? 600 : 400,
-                              borderRadius: 0,
-                              borderBottom: 2,
-                              borderColor: isActive ? 'primary.main' : 'transparent',
-                            }}
-                          >
-                            {item.label}
-                          </Button>
-                        );
-                      })
+                      <>
+                        {primaryItems.map((item) => {
+                          const isActive = location.pathname === item.path;
+                          return (
+                            <Button
+                              key={item.path}
+                              component={Link}
+                              to={item.path}
+                              color={isActive ? 'primary' : 'inherit'}
+                              aria-current={isActive ? 'page' : undefined}
+                              sx={{
+                                fontWeight: isActive ? 600 : 400,
+                                borderRadius: 0,
+                                borderBottom: 2,
+                                borderColor: isActive ? 'primary.main' : 'transparent',
+                              }}
+                            >
+                              {item.label}
+                            </Button>
+                          );
+                        })}
+                        <ConfigureMenu items={configureItems} />
+                      </>
                     )}
                     {SHOW_ALERT_BELL.includes(persona) && <AlertBell />}
                     <Chip
@@ -137,10 +169,10 @@ export default function App() {
 
               <Container sx={{ py: 4 }}>
                 <Routes>
-                  <Route path="/" element={<DashboardPage />} />
+                  <Route path="/" element={<HomePage />} />
+                  <Route path="/agents" element={<AllAgentsPage />} />
                   <Route path="/daily-sheet" element={restricted('/daily-sheet', <DailyUpdateSheetPage />)} />
                   <Route path="/agents/:id" element={<AgentDetailPage />} />
-                  <Route path="/finops" element={restricted('/finops', <FinOpsPage />)} />
                   <Route path="/finops/pricing" element={restricted('/finops/pricing', <PricingAdminPage />)} />
                   <Route path="/finops/thresholds" element={restricted('/finops/thresholds', <ThresholdsAdminPage />)} />
                 </Routes>

@@ -7,18 +7,17 @@ import { useMemo, useState } from 'react';
 import AgentCard from '../components/AgentCard';
 import DashboardSummaryBanner from '../components/DashboardSummaryBanner';
 import ErrorAlert from '../components/ErrorAlert';
-import Legend from '../components/Legend';
-import PortfolioInsightsPanel from '../components/PortfolioInsightsPanel';
 import { computeAgentHealth, summarizeAgents } from '../agentHealth';
-import { PERSONAS } from '../constants';
 import { useAgents } from '../hooks/useAgents';
 import { useAgentsInsightsSummary } from '../hooks/useInsights';
 import { usePageTitle } from '../hooks/usePageTitle';
-import { usePersona } from '../persona/PersonaContext';
 
-export default function DashboardPage() {
-  usePageTitle('Dashboard');
-  const { persona } = usePersona();
+// The full card grid — a drill-through page rather than anyone's Home. The
+// Agent Manager's queue and the Executive's shortlist both already cover
+// their day-to-day view of every agent; this is here for "just let me
+// browse everything."
+export default function AllAgentsPage() {
+  usePageTitle('All Agents');
   const { data: agents, isLoading, isError, refetch } = useAgents();
   const { data: insightsSummary } = useAgentsInsightsSummary();
   const [healthFilter, setHealthFilter] = useState(null);
@@ -31,6 +30,10 @@ export default function DashboardPage() {
 
   return (
     <Box>
+      <Typography variant="h4" sx={{ mb: 3 }}>
+        All Agents
+      </Typography>
+
       {isLoading && (
         <Stack direction="row" spacing={1.5} alignItems="center">
           <CircularProgress size={20} />
@@ -44,11 +47,7 @@ export default function DashboardPage() {
       )}
 
       {agents && agents.length > 0 && (
-        <>
-          <DashboardSummaryBanner summary={summary} activeFilter={healthFilter} onFilterChange={setHealthFilter} />
-          {persona !== PERSONAS.AGENT_MANAGER && <PortfolioInsightsPanel />}
-          <Legend />
-        </>
+        <DashboardSummaryBanner summary={summary} activeFilter={healthFilter} onFilterChange={setHealthFilter} />
       )}
 
       <Box

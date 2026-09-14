@@ -42,6 +42,19 @@ export function computeAgentHealth(agent, now = new Date()) {
   return { level: HEALTH_LEVELS.NEUTRAL, reason: 'Not started' };
 }
 
+const SEVERITY_RANK = {
+  [HEALTH_LEVELS.AT_RISK]: 0,
+  [HEALTH_LEVELS.ATTENTION]: 1,
+  [HEALTH_LEVELS.HEALTHY]: 2,
+  [HEALTH_LEVELS.NEUTRAL]: 3,
+};
+
+// Worst-first ordering for the Agent Manager's action queue — blocked/stale
+// projects surface above ones that don't need anyone's attention today.
+export function sortBySeverity(agents, now = new Date()) {
+  return [...agents].sort((a, b) => SEVERITY_RANK[computeAgentHealth(a, now).level] - SEVERITY_RANK[computeAgentHealth(b, now).level]);
+}
+
 export function summarizeAgents(agents, now = new Date()) {
   const summary = { total: agents.length, onTrack: 0, attention: 0, atRisk: 0, neutral: 0 };
 
