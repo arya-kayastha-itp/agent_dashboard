@@ -5,14 +5,17 @@ import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import AlertsList from '../components/AlertsList';
+import ErrorAlert from '../components/ErrorAlert';
 import InfoTooltip from '../components/InfoTooltip';
 import Legend from '../components/Legend';
 import UsageCostChart from '../components/UsageCostChart';
 import { formatCurrency } from '../formatters';
 import { useUsageSummary } from '../hooks/useUsage';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 export default function FinOpsPage() {
-  const { data: summary, isLoading, isError } = useUsageSummary();
+  usePageTitle('Cost & Reliability');
+  const { data: summary, isLoading, isError, refetch } = useUsageSummary();
 
   const totals = summary?.reduce(
     (acc, row) => ({ cost: acc.cost + Number(row.cost), calls: acc.calls + row.calls, errors: acc.errors + row.errors }),
@@ -40,7 +43,7 @@ export default function FinOpsPage() {
             <Typography color="text.secondary">Loading usage…</Typography>
           </Stack>
         )}
-        {isError && <Alert severity="error">Failed to load usage summary.</Alert>}
+        {isError && <ErrorAlert onRetry={refetch}>Failed to load usage summary.</ErrorAlert>}
         {summary && summary.length === 0 && <Alert severity="info">No usage logged yet.</Alert>}
 
         {summary && summary.length > 0 && (

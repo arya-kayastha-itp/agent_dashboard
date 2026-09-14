@@ -6,12 +6,15 @@ import Typography from '@mui/material/Typography';
 import { useMemo, useState } from 'react';
 import AgentCard from '../components/AgentCard';
 import DashboardSummaryBanner from '../components/DashboardSummaryBanner';
+import ErrorAlert from '../components/ErrorAlert';
 import Legend from '../components/Legend';
 import { computeAgentHealth, summarizeAgents } from '../agentHealth';
 import { useAgents } from '../hooks/useAgents';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 export default function DashboardPage() {
-  const { data: agents, isLoading, isError } = useAgents();
+  usePageTitle('Dashboard');
+  const { data: agents, isLoading, isError, refetch } = useAgents();
   const [healthFilter, setHealthFilter] = useState(null);
 
   const summary = useMemo(() => summarizeAgents(agents || []), [agents]);
@@ -28,7 +31,7 @@ export default function DashboardPage() {
           <Typography color="text.secondary">Loading projects…</Typography>
         </Stack>
       )}
-      {isError && <Alert severity="error">Failed to load agents.</Alert>}
+      {isError && <ErrorAlert onRetry={refetch}>Failed to load agents.</ErrorAlert>}
 
       {agents && agents.length === 0 && (
         <Alert severity="info">No agents yet. Click &quot;Add Agent&quot; to create the first one.</Alert>

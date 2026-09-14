@@ -1,7 +1,6 @@
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import Box from '@mui/material/Box';
 import Collapse from '@mui/material/Collapse';
-import IconButton from '@mui/material/IconButton';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { format } from 'date-fns';
@@ -18,8 +17,24 @@ export default function UpdateStoryRow({ update }) {
 
   return (
     <Box
+      role="button"
+      tabIndex={0}
+      aria-expanded={expanded}
       onClick={() => setExpanded((e) => !e)}
-      sx={{ py: 1, px: 1, borderRadius: 1, cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          setExpanded((v) => !v);
+        }
+      }}
+      sx={{
+        py: 1,
+        px: 1,
+        borderRadius: 1,
+        cursor: 'pointer',
+        '&:hover': { bgcolor: 'action.hover' },
+        '&:focus-visible': { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: '2px' },
+      }}
     >
       <Stack direction="row" spacing={1} alignItems="flex-start">
         <Icon fontSize="small" color={color} sx={{ mt: 0.25, flexShrink: 0 }} />
@@ -34,9 +49,11 @@ export default function UpdateStoryRow({ update }) {
           {notes && ` — ${notes}`}
         </Typography>
 
-        <IconButton size="small" aria-label={expanded ? 'Show less' : 'Show more'} sx={{ transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>
-          <ExpandMoreIcon fontSize="small" />
-        </IconButton>
+        <ExpandMoreIcon
+          fontSize="small"
+          aria-hidden="true"
+          sx={{ mt: 0.25, flexShrink: 0, transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}
+        />
       </Stack>
 
       <Collapse in={expanded}>

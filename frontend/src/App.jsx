@@ -9,7 +9,7 @@ import Stack from '@mui/material/Stack';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 import { useState } from 'react';
-import { Link, Route, Routes, useNavigate } from 'react-router-dom';
+import { Link, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import AddAgentModal from './components/AddAgentModal';
 import AlertBell from './components/AlertBell';
 import { PERSONA_LABELS } from './labels';
@@ -38,6 +38,7 @@ export default function App() {
   const [addAgentOpen, setAddAgentOpen] = useState(false);
   const { persona, clearPersona } = usePersona();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleSwitchPersona = () => {
     clearPersona();
@@ -54,15 +55,38 @@ export default function App() {
             <RequirePersona>
               <AppBar position="static" color="default" elevation={0} sx={{ borderBottom: 1, borderColor: 'divider' }}>
                 <Toolbar>
-                  <Typography variant="h6" component={Link} to="/" sx={{ flexGrow: 1, textDecoration: 'none', color: 'inherit' }}>
-                    Agent Dashboard
-                  </Typography>
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    alignItems="center"
+                    component={Link}
+                    to="/"
+                    sx={{ flexGrow: 1, textDecoration: 'none', color: 'inherit' }}
+                  >
+                    <Box component="img" src="/favicon.svg" alt="" aria-hidden="true" sx={{ width: 26, height: 26 }} />
+                    <Typography variant="h6">Agent Dashboard</Typography>
+                  </Stack>
                   <Stack direction="row" spacing={1} alignItems="center">
-                    {NAV_ITEMS.filter((item) => item.visibleTo.includes(persona)).map((item) => (
-                      <Button key={item.path} component={Link} to={item.path}>
-                        {item.label}
-                      </Button>
-                    ))}
+                    {NAV_ITEMS.filter((item) => item.visibleTo.includes(persona)).map((item) => {
+                      const isActive = location.pathname === item.path;
+                      return (
+                        <Button
+                          key={item.path}
+                          component={Link}
+                          to={item.path}
+                          color={isActive ? 'primary' : 'inherit'}
+                          aria-current={isActive ? 'page' : undefined}
+                          sx={{
+                            fontWeight: isActive ? 600 : 400,
+                            borderRadius: 0,
+                            borderBottom: 2,
+                            borderColor: isActive ? 'primary.main' : 'transparent',
+                          }}
+                        >
+                          {item.label}
+                        </Button>
+                      );
+                    })}
                     {SHOW_ALERT_BELL.includes(persona) && <AlertBell />}
                     <Chip
                       label={`${PERSONA_LABELS[persona]} · Switch`}

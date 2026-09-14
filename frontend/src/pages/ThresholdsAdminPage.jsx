@@ -4,12 +4,15 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
+import ErrorAlert from '../components/ErrorAlert';
 import ThresholdForm from '../components/ThresholdForm';
 import ThresholdsTable from '../components/ThresholdsTable';
 import { useThresholds } from '../hooks/useThresholds';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 export default function ThresholdsAdminPage() {
-  const { data: thresholds, isLoading, isError } = useThresholds();
+  usePageTitle('Alert Rules');
+  const { data: thresholds, isLoading, isError, refetch } = useThresholds();
 
   return (
     <Box>
@@ -39,7 +42,7 @@ export default function ThresholdsAdminPage() {
             <Typography color="text.secondary">Loading rules…</Typography>
           </Stack>
         )}
-        {isError && <Alert severity="error">Failed to load alert rules.</Alert>}
+        {isError && <ErrorAlert onRetry={refetch}>Failed to load alert rules.</ErrorAlert>}
         {thresholds && thresholds.length === 0 && (
           <Alert severity="info">No custom rules yet — sensible default limits are being used instead.</Alert>
         )}

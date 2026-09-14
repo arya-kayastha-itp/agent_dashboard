@@ -9,6 +9,7 @@ import { format } from 'date-fns';
 import { Link, useParams } from 'react-router-dom';
 import { computeAgentHealth } from '../agentHealth';
 import AgentUpdateForm from '../components/AgentUpdateForm';
+import ErrorAlert from '../components/ErrorAlert';
 import HistoryChart from '../components/HistoryChart';
 import InfoTooltip from '../components/InfoTooltip';
 import InsightsPanel from '../components/InsightsPanel';
@@ -17,6 +18,7 @@ import StatusBadge from '../components/StatusBadge';
 import { HEALTH_LEVELS, HEALTH_LEVEL_META } from '../healthLevel';
 import { useAgentHistory } from '../hooks/useAgentHistory';
 import { useAgents } from '../hooks/useAgents';
+import { usePageTitle } from '../hooks/usePageTitle';
 import { FIELD_LABELS } from '../labels';
 import { usePersona } from '../persona/PersonaContext';
 import { canEditAgents } from '../persona/permissions';
@@ -24,12 +26,14 @@ import { canEditAgents } from '../persona/permissions';
 export default function AgentDetailPage() {
   const { id } = useParams();
   const { data: agents } = useAgents();
-  const { data: history, isLoading, isError } = useAgentHistory(id);
+  const { data: history, isLoading, isError, refetch } = useAgentHistory(id);
   const { persona } = usePersona();
 
   const agent = agents?.find((a) => a.id === id);
   const health = agent ? computeAgentHealth(agent) : null;
   const healthMeta = health ? HEALTH_LEVEL_META[health.level] : null;
+
+  usePageTitle(agent?.name);
 
   return (
     <Box>
@@ -99,7 +103,7 @@ export default function AgentDetailPage() {
       </Typography>
 
       {isLoading && <CircularProgress />}
-      {isError && <Alert severity="error">Failed to load history.</Alert>}
+      {isError && <ErrorAlert onRetry={refetch}>Failed to load history.</ErrorAlert>}
       {history && history.length === 0 && <Alert severity="info">No history recorded yet.</Alert>}
       {history && history.length > 0 && <HistoryChart history={history} />}
     </Box>

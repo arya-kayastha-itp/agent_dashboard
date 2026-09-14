@@ -5,11 +5,14 @@ import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import AddPricingForm from '../components/AddPricingForm';
+import ErrorAlert from '../components/ErrorAlert';
 import PricingTable from '../components/PricingTable';
 import { usePricing } from '../hooks/usePricing';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 export default function PricingAdminPage() {
-  const { data: pricing, isLoading, isError } = usePricing();
+  usePageTitle('Pricing');
+  const { data: pricing, isLoading, isError, refetch } = usePricing();
 
   return (
     <Box>
@@ -38,7 +41,7 @@ export default function PricingAdminPage() {
             <Typography color="text.secondary">Loading pricing…</Typography>
           </Stack>
         )}
-        {isError && <Alert severity="error">Failed to load pricing.</Alert>}
+        {isError && <ErrorAlert onRetry={refetch}>Failed to load pricing.</ErrorAlert>}
         {pricing && pricing.length === 0 && <Alert severity="info">No pricing configured yet.</Alert>}
         {pricing && pricing.length > 0 && <PricingTable pricing={pricing} />}
       </Paper>

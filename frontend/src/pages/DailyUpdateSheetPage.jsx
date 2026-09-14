@@ -12,13 +12,16 @@ import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
 import { useEffect, useMemo, useState } from 'react';
 import DailySheetRow from '../components/DailySheetRow';
+import ErrorAlert from '../components/ErrorAlert';
 import UpdateHistoryList from '../components/UpdateHistoryList';
 import { useAllUpdatesHistory, useTodayUpdates, useSubmitDailyUpdates } from '../hooks/useDailySheet';
+import { usePageTitle } from '../hooks/usePageTitle';
 import { FIELD_LABELS } from '../labels';
 
 export default function DailyUpdateSheetPage() {
-  const { data: rows, isLoading, isError } = useTodayUpdates();
-  const { data: allHistory, isLoading: isHistoryLoading } = useAllUpdatesHistory();
+  usePageTitle('Daily Update Sheet');
+  const { data: rows, isLoading, isError, refetch } = useTodayUpdates();
+  const { data: allHistory, isLoading: isHistoryLoading, isError: isHistoryError, refetch: refetchHistory } = useAllUpdatesHistory();
   const submitUpdates = useSubmitDailyUpdates();
   const [entries, setEntries] = useState({});
   const [submitted, setSubmitted] = useState(false);
@@ -62,7 +65,7 @@ export default function DailyUpdateSheetPage() {
       </Stack>
     );
   }
-  if (isError) return <Alert severity="error">Failed to load today&apos;s sheet.</Alert>;
+  if (isError) return <ErrorAlert onRetry={refetch}>Failed to load today&apos;s sheet.</ErrorAlert>;
 
   return (
     <Box>
@@ -119,6 +122,7 @@ export default function DailyUpdateSheetPage() {
           <Typography color="text.secondary">Loading update history…</Typography>
         </Stack>
       )}
+      {isHistoryError && <ErrorAlert onRetry={refetchHistory}>Failed to load update history.</ErrorAlert>}
       {allHistory && allHistory.length === 0 && <Alert severity="info">No updates recorded yet.</Alert>}
       {allHistory && allHistory.length > 0 && <UpdateHistoryList history={allHistory} />}
     </Box>

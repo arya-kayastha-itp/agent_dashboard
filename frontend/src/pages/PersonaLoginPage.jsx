@@ -6,10 +6,12 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { PERSONA_VALUES } from '../constants';
+import { usePageTitle } from '../hooks/usePageTitle';
 import { PERSONA_DESCRIPTIONS, PERSONA_LABELS } from '../labels';
 import { usePersona } from '../persona/PersonaContext';
 
 export default function PersonaLoginPage() {
+  usePageTitle('Choose persona');
   const { setPersona } = usePersona();
   const navigate = useNavigate();
   const location = useLocation();

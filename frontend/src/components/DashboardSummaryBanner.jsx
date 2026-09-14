@@ -28,19 +28,28 @@ export default function DashboardSummaryBanner({ summary, activeFilter, onFilter
 
       <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
         {summary.onTrack > 0 && (
-          <span onClick={() => handleToggle(HEALTH_LEVELS.HEALTHY)} style={{ cursor: 'pointer' }}>
-            <HealthChip level={HEALTH_LEVELS.HEALTHY} label={`${summary.onTrack} on track`} />
-          </span>
+          <HealthChip
+            level={HEALTH_LEVELS.HEALTHY}
+            label={`${summary.onTrack} on track`}
+            onClick={() => handleToggle(HEALTH_LEVELS.HEALTHY)}
+            selected={activeFilter === HEALTH_LEVELS.HEALTHY}
+          />
         )}
         {summary.attention > 0 && (
-          <span onClick={() => handleToggle(HEALTH_LEVELS.ATTENTION)} style={{ cursor: 'pointer' }}>
-            <HealthChip level={HEALTH_LEVELS.ATTENTION} label={`${summary.attention} need attention`} />
-          </span>
+          <HealthChip
+            level={HEALTH_LEVELS.ATTENTION}
+            label={`${summary.attention} need attention`}
+            onClick={() => handleToggle(HEALTH_LEVELS.ATTENTION)}
+            selected={activeFilter === HEALTH_LEVELS.ATTENTION}
+          />
         )}
         {summary.atRisk > 0 && (
-          <span onClick={() => handleToggle(HEALTH_LEVELS.AT_RISK)} style={{ cursor: 'pointer' }}>
-            <HealthChip level={HEALTH_LEVELS.AT_RISK} label={`${summary.atRisk} at risk`} />
-          </span>
+          <HealthChip
+            level={HEALTH_LEVELS.AT_RISK}
+            label={`${summary.atRisk} at risk`}
+            onClick={() => handleToggle(HEALTH_LEVELS.AT_RISK)}
+            selected={activeFilter === HEALTH_LEVELS.AT_RISK}
+          />
         )}
       </Stack>
 
