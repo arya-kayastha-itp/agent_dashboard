@@ -2,75 +2,106 @@ import AddIcon from '@mui/icons-material/Add';
 import AppBar from '@mui/material/AppBar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import Chip from '@mui/material/Chip';
 import Container from '@mui/material/Container';
 import Fab from '@mui/material/Fab';
 import Stack from '@mui/material/Stack';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 import { useState } from 'react';
-import { Link, Route, Routes } from 'react-router-dom';
+import { Link, Route, Routes, useNavigate } from 'react-router-dom';
 import AddAgentModal from './components/AddAgentModal';
 import AlertBell from './components/AlertBell';
+import { PERSONA_LABELS } from './labels';
 import AgentDetailPage from './pages/AgentDetailPage';
 import DailyUpdateSheetPage from './pages/DailyUpdateSheetPage';
 import DashboardPage from './pages/DashboardPage';
 import FinOpsPage from './pages/FinOpsPage';
+import PersonaLoginPage from './pages/PersonaLoginPage';
 import PricingAdminPage from './pages/PricingAdminPage';
 import ThresholdsAdminPage from './pages/ThresholdsAdminPage';
+import { NAV_ITEMS, SHOW_ALERT_BELL, navItemFor } from './persona/navConfig';
+import { usePersona } from './persona/PersonaContext';
+import { canAddAgent } from './persona/permissions';
+import RequirePersona from './persona/RequirePersona';
+import RequirePersonaRoute from './persona/RequirePersonaRoute';
+
+function restricted(path, element) {
+  return (
+    <RequirePersonaRoute allowed={navItemFor(path).visibleTo}>
+      {element}
+    </RequirePersonaRoute>
+  );
+}
 
 export default function App() {
   const [addAgentOpen, setAddAgentOpen] = useState(false);
+  const { persona, clearPersona } = usePersona();
+  const navigate = useNavigate();
+
+  const handleSwitchPersona = () => {
+    clearPersona();
+    navigate('/login');
+  };
 
   return (
     <Box>
-      <AppBar position="static" color="default" elevation={0} sx={{ borderBottom: 1, borderColor: 'divider' }}>
-        <Toolbar>
-          <Typography variant="h6" component={Link} to="/" sx={{ flexGrow: 1, textDecoration: 'none', color: 'inherit' }}>
-            Agent Dashboard
-          </Typography>
-          <Stack direction="row" spacing={1} alignItems="center">
-            <Button component={Link} to="/">
-              Dashboard
-            </Button>
-            <Button component={Link} to="/daily-sheet">
-              Daily Update Sheet
-            </Button>
-            <Button component={Link} to="/finops">
-              Cost &amp; Reliability
-            </Button>
-            <Button component={Link} to="/finops/pricing">
-              Pricing
-            </Button>
-            <Button component={Link} to="/finops/thresholds">
-              Alert Rules
-            </Button>
-            <AlertBell />
-          </Stack>
-        </Toolbar>
-      </AppBar>
+      <Routes>
+        <Route path="/login" element={<PersonaLoginPage />} />
+        <Route
+          path="/*"
+          element={
+            <RequirePersona>
+              <AppBar position="static" color="default" elevation={0} sx={{ borderBottom: 1, borderColor: 'divider' }}>
+                <Toolbar>
+                  <Typography variant="h6" component={Link} to="/" sx={{ flexGrow: 1, textDecoration: 'none', color: 'inherit' }}>
+                    Agent Dashboard
+                  </Typography>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    {NAV_ITEMS.filter((item) => item.visibleTo.includes(persona)).map((item) => (
+                      <Button key={item.path} component={Link} to={item.path}>
+                        {item.label}
+                      </Button>
+                    ))}
+                    {SHOW_ALERT_BELL.includes(persona) && <AlertBell />}
+                    <Chip
+                      label={`${PERSONA_LABELS[persona]} · Switch`}
+                      onClick={handleSwitchPersona}
+                      variant="outlined"
+                      size="small"
+                    />
+                  </Stack>
+                </Toolbar>
+              </AppBar>
 
-      <Container sx={{ py: 4 }}>
-        <Routes>
-          <Route path="/" element={<DashboardPage />} />
-          <Route path="/daily-sheet" element={<DailyUpdateSheetPage />} />
-          <Route path="/agents/:id" element={<AgentDetailPage />} />
-          <Route path="/finops" element={<FinOpsPage />} />
-          <Route path="/finops/pricing" element={<PricingAdminPage />} />
-          <Route path="/finops/thresholds" element={<ThresholdsAdminPage />} />
-        </Routes>
-      </Container>
+              <Container sx={{ py: 4 }}>
+                <Routes>
+                  <Route path="/" element={<DashboardPage />} />
+                  <Route path="/daily-sheet" element={restricted('/daily-sheet', <DailyUpdateSheetPage />)} />
+                  <Route path="/agents/:id" element={<AgentDetailPage />} />
+                  <Route path="/finops" element={restricted('/finops', <FinOpsPage />)} />
+                  <Route path="/finops/pricing" element={restricted('/finops/pricing', <PricingAdminPage />)} />
+                  <Route path="/finops/thresholds" element={restricted('/finops/thresholds', <ThresholdsAdminPage />)} />
+                </Routes>
+              </Container>
 
-      <Fab
-        variant="extended"
-        color="primary"
-        onClick={() => setAddAgentOpen(true)}
-        sx={{ position: 'fixed', bottom: 24, right: 24 }}
-      >
-        <AddIcon sx={{ mr: 1 }} />
-        Add Agent
-      </Fab>
+              {canAddAgent(persona) && (
+                <Fab
+                  variant="extended"
+                  color="primary"
+                  onClick={() => setAddAgentOpen(true)}
+                  sx={{ position: 'fixed', bottom: 24, right: 24 }}
+                >
+                  <AddIcon sx={{ mr: 1 }} />
+                  Add Agent
+                </Fab>
+              )}
 
-      <AddAgentModal open={addAgentOpen} onClose={() => setAddAgentOpen(false)} />
+              <AddAgentModal open={addAgentOpen} onClose={() => setAddAgentOpen(false)} />
+            </RequirePersona>
+          }
+        />
+      </Routes>
     </Box>
   );
 }

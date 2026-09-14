@@ -13,3 +13,15 @@ export const ALERT_TYPE_EXPLAINERS = {
   high_api_error_rate: 'The AI service is failing more often than usual — some requests may not be completing.',
   high_validation_error_rate: 'The data being sent to the AI service is likely malformed — worth checking the integration.',
 };
+
+export const PERSONA_LABELS = {
+  EXECUTIVE: 'Executive',
+  AGENT_MANAGER: 'Agent Manager',
+  FINOPS: 'FinOps',
+};
+
+export const PERSONA_DESCRIPTIONS = {
+  EXECUTIVE: 'View-only access to the dashboard and agent insights.',
+  AGENT_MANAGER: 'Manage agents and log daily progress updates.',
+  FINOPS: 'Track cost, reliability, pricing, and alert rules.',
+};

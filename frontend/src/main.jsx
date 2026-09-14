@@ -10,6 +10,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import App from './App.jsx'
 import './index.css'
+import { PersonaProvider } from './persona/PersonaContext.jsx'
 import theme from './theme.js'
 
 const queryClient = new QueryClient()
@@ -20,7 +21,9 @@ createRoot(document.getElementById('root')).render(
       <ThemeProvider theme={theme}>
         <CssBaseline />
         <BrowserRouter>
-          <App />
+          <PersonaProvider>
+            <App />
+          </PersonaProvider>
         </BrowserRouter>
       </ThemeProvider>
     </QueryClientProvider>

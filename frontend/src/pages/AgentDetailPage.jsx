@@ -18,11 +18,14 @@ import { HEALTH_LEVELS, HEALTH_LEVEL_META } from '../healthLevel';
 import { useAgentHistory } from '../hooks/useAgentHistory';
 import { useAgents } from '../hooks/useAgents';
 import { FIELD_LABELS } from '../labels';
+import { usePersona } from '../persona/PersonaContext';
+import { canEditAgents } from '../persona/permissions';
 
 export default function AgentDetailPage() {
   const { id } = useParams();
   const { data: agents } = useAgents();
   const { data: history, isLoading, isError } = useAgentHistory(id);
+  const { persona } = usePersona();
 
   const agent = agents?.find((a) => a.id === id);
   const health = agent ? computeAgentHealth(agent) : null;
@@ -87,7 +90,7 @@ export default function AgentDetailPage() {
         </Paper>
       )}
 
-      {agent && <AgentUpdateForm agent={agent} />}
+      {agent && canEditAgents(persona) && <AgentUpdateForm agent={agent} />}
 
       {agent && <InsightsPanel agentId={id} />}
 
