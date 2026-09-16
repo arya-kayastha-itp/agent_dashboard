@@ -42,24 +42,24 @@ export default function AgentSummaryRow({ agent, onClick, onNameClick, insight, 
         </Typography>
       </Box>
 
-      {agent.assignedTo && (
-        <Typography
-          variant="body2"
-          color="text.secondary"
-          sx={{ width: 140, flexShrink: 0, display: { xs: 'none', sm: 'block' } }}
-        >
-          {agent.assignedTo}
-        </Typography>
-      )}
+      <Typography
+        variant="body2"
+        color="text.secondary"
+        sx={{ width: 140, flexShrink: 0, display: { xs: 'none', sm: 'block' } }}
+      >
+        {agent.assignedTo}
+      </Typography>
 
-      {insight && insight.calls > 0 && (
-        <Box sx={{ width: 90, flexShrink: 0, display: { xs: 'none', lg: 'block' }, textAlign: 'right' }}>
-          <Typography variant="body2">{formatCurrency(insight.cost)}</Typography>
-          <Typography variant="caption" color="text.secondary">
-            {insight.calls} calls
-          </Typography>
-        </Box>
-      )}
+      <Box sx={{ width: 90, flexShrink: 0, display: { xs: 'none', lg: 'block' }, textAlign: 'right' }}>
+        {insight && insight.calls > 0 && (
+          <>
+            <Typography variant="body2">{formatCurrency(insight.cost)}</Typography>
+            <Typography variant="caption" color="text.secondary">
+              {insight.calls} calls
+            </Typography>
+          </>
+        )}
+      </Box>
 
       <Box sx={{ width: 160, flexShrink: 0, display: { xs: 'none', md: 'block' } }}>
         <ProgressBar progress={agent.currentProgress} />
