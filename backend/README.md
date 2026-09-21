@@ -70,6 +70,22 @@ Request bodies are validated with Zod schemas in `validators/`, applied via `mid
 
 `services/mailer.service.js` is a stub — it logs what it would send instead of sending it. No SMTP is configured. Alert-raising code (`alerts.service.js`) already calls it, so wiring real delivery in only touches that one file.
 
+## Databricks migration (in progress)
+
+We're planning a full cutover of the live datastore from Postgres to Databricks SQL. This is **not done yet** — the app still runs entirely on Postgres today. What exists so far:
+
+- `src/db/databricks-migrations/*.sql` — schema DDL for all 6 tables, translated for Delta Lake (no `ENUM`/`jsonb`/unique indexes/enforced FKs; `CHECK` constraints and informational `PRIMARY KEY`/`FOREIGN KEY ... NOT ENFORCED` instead)
+- `src/db/databricksClient.js` — thin wrapper around `@databricks/sql` for parameterized queries
+- `src/db/migrate-databricks.js` — applies the DDL files in order, tracked in a `schema_migrations` table (run via `npm run migrate:databricks --workspace backend`)
+
+Still to come before cutover: the one-time Postgres → Databricks data copy script, and rewriting `services/*.js` off Knex/`pg` onto raw parameterized SQL against Databricks (Delta has no cross-table transactions, `RETURNING`, or enforced FK/unique constraints, so several services need real logic changes, not just a driver swap — see the migration plan for specifics before touching that part).
+
+To try the schema DDL yourself: set the `DATABRICKS_*` vars in `.env` (see `.env.example`) using **your own** personal access token (Databricks User Settings → Developer → Access tokens — tokens are per-user, don't reuse someone else's), and get `USE CATALOG` on the catalog plus `USE SCHEMA`/`CREATE TABLE`/`MODIFY`/`SELECT` on the target schema granted to your account by whoever administers Unity Catalog. Then:
+
+```
+npm run migrate:databricks --workspace backend
+```
+
 ## Linting / tests
 
 No dedicated backend lint script or test suite exists yet — `node -e "require('./src/app.js')"` is a quick sanity check that the app boots without a syntax/require error.

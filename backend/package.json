@@ -9,10 +9,12 @@
     "start": "node src/server.js",
     "migrate": "knex migrate:latest",
     "migrate:rollback": "knex migrate:rollback",
-    "seed": "knex seed:run"
+    "seed": "knex seed:run",
+    "migrate:databricks": "node src/db/migrate-databricks.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",
+    "@databricks/sql": "^2.1.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.21.1",
