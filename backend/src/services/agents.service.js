@@ -10,12 +10,18 @@ const AGENT_COLUMNS = [
   'current_progress as currentProgress',
   'current_status_description as currentStatusDescription',
   'last_update_at as lastUpdateAt',
+  'sort_order as sortOrder',
   'created_at as createdAt',
   'updated_at as updatedAt',
 ];
 
 async function listAgents({ status } = {}) {
-  const query = db('agents').select(AGENT_COLUMNS).orderBy('created_at', 'asc');
+  const query = db('agents')
+    .select(AGENT_COLUMNS)
+    .orderBy([
+      { column: 'sort_order', order: 'asc' },
+      { column: 'created_at', order: 'asc' },
+    ]);
   if (status) {
     query.where('current_status', status);
   }
@@ -28,6 +34,8 @@ async function getAgentById(id) {
 
 async function createAgent(data) {
   return db.transaction(async (trx) => {
+    const [{ maxOrder }] = await trx('agents').max({ maxOrder: 'sort_order' });
+
     const [agent] = await trx('agents')
       .insert({
         name: data.name,
@@ -38,6 +46,7 @@ async function createAgent(data) {
         current_progress: data.progress,
         current_status_description: data.statusDescription ?? null,
         last_update_at: trx.fn.now(),
+        sort_order: (maxOrder ?? -1) + 1,
       })
       .returning(AGENT_COLUMNS);
 
@@ -69,4 +78,18 @@ async function deleteAgent(id) {
   return count > 0;
 }
 
-module.exports = { listAgents, getAgentById, createAgent, updateAgentMetadata, deleteAgent, AGENT_COLUMNS };
+// Renumbers sort_order to 0..n-1 across exactly the ids given, in that order.
+// Callers pass just the ids within one drag-and-drop group (e.g. the "needs
+// attention" section) — cross-group comparisons never happen because
+// severity rank is always the primary sort key, so groups' sort_order ranges
+// can safely overlap.
+async function reorderAgents(ids) {
+  await db.transaction(async (trx) => {
+    await Promise.all(
+      ids.map((id, index) => trx('agents').where({ id }).update({ sort_order: index, updated_at: trx.fn.now() }))
+    );
+  });
+  return listAgents({});
+}
+
+module.exports = { listAgents, getAgentById, createAgent, updateAgentMetadata, deleteAgent, reorderAgents, AGENT_COLUMNS };

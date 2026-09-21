@@ -19,7 +19,7 @@ import { useToast } from './ToastProvider';
 // (icon, name, health caption, assignee, progress bar) with the Executive's
 // rows via AgentSummaryRow, and adds "Update" to expand an inline form so a
 // single-agent change never has to go through the full Daily Sheet.
-export default function AgentQueueRow({ agent, insight }) {
+export default function AgentQueueRow({ agent, insight, dragHandle }) {
   const navigate = useNavigate();
   const recordUpdate = useRecordUpdate();
   const showToast = useToast();
@@ -57,6 +57,7 @@ export default function AgentQueueRow({ agent, insight }) {
       <AgentSummaryRow
         agent={agent}
         insight={insight}
+        leading={dragHandle}
         onNameClick={() => navigate(`/agents/${agent.id}`)}
         trailing={
           <Button

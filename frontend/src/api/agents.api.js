@@ -24,6 +24,11 @@ export async function deleteAgent(id) {
   await client.delete(`/agents/${id}`);
 }
 
+export async function reorderAgents(ids) {
+  const { data } = await client.patch('/agents/reorder', { ids });
+  return data;
+}
+
 export async function getAgentHistory(id, { from, to } = {}) {
   const { data } = await client.get(`/agents/${id}/history`, { params: { from, to } });
   return data;

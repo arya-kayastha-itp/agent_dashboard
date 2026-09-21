@@ -12,7 +12,8 @@ import StatusBadge from './StatusBadge';
 // assignee, 30-day cost, progress bar), so the two views can't visually
 // drift apart. `trailing` is where the Agent Manager's inline "Update"
 // control slots in — Executive rows pass nothing and stay purely read-only.
-export default function AgentSummaryRow({ agent, onClick, onNameClick, insight, trailing }) {
+// `leading` is where the drag handle for manual reordering slots in.
+export default function AgentSummaryRow({ agent, onClick, onNameClick, insight, leading, trailing }) {
   const health = computeAgentHealth(agent);
   const { Icon: HealthIcon, color: healthColor } = HEALTH_LEVEL_META[health.level];
 
@@ -24,6 +25,7 @@ export default function AgentSummaryRow({ agent, onClick, onNameClick, insight, 
       onClick={onClick}
       sx={onClick ? { cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } } : undefined}
     >
+      {leading}
       <HealthIcon fontSize="small" color={healthColor} sx={{ flexShrink: 0 }} />
 
       <Box sx={{ flexGrow: 1, minWidth: 0 }}>

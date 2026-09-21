@@ -6,18 +6,18 @@ import Divider from '@mui/material/Divider';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
+import { DndContext, PointerSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core';
+import { SortableContext, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useMemo, useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
-import AgentQueueRow from '../components/AgentQueueRow';
+import SortableAgentRow from '../components/SortableAgentRow';
 import DashboardSummaryBanner from '../components/DashboardSummaryBanner';
 import ErrorAlert from '../components/ErrorAlert';
-import { computeAgentHealth, sortBySeverity, summarizeAgents } from '../agentHealth';
-import { useAgents } from '../hooks/useAgents';
+import { FLAGGED_HEALTH_LEVELS, computeAgentHealth, sortBySeverity, summarizeAgents } from '../agentHealth';
+import { useAgents, useReorderAgents } from '../hooks/useAgents';
 import { useTodayUpdates } from '../hooks/useDailySheet';
 import { useAgentsInsightsSummary } from '../hooks/useInsights';
 import { usePageTitle } from '../hooks/usePageTitle';
-
-const FLAGGED_LEVELS = ['atRisk', 'attention'];
 
 // The Agent Manager's Home: a severity-sorted action queue instead of a card
 // grid, so the projects that actually need a decision today surface first —
@@ -29,6 +29,7 @@ export default function AgentManagerHomePage() {
   const { data: todayRows } = useTodayUpdates();
   const { data: insightsSummary } = useAgentsInsightsSummary();
   const [healthFilter, setHealthFilter] = useState(null);
+  const reorderAgents = useReorderAgents();
 
   const summary = useMemo(() => summarizeAgents(agents || []), [agents]);
   const sorted = useMemo(() => sortBySeverity(agents || []), [agents]);
@@ -36,6 +37,35 @@ export default function AgentManagerHomePage() {
     if (!healthFilter) return sorted;
     return sorted.filter((agent) => computeAgentHealth(agent).level === healthFilter);
   }, [sorted, healthFilter]);
+
+  // Consecutive runs of the same flagged/not-flagged state — at most two
+  // ("Needs attention today" then "All caught up"), since severity is
+  // always the primary sort. Each run is its own drag-and-drop group so
+  // reordering can't cross into the other severity band.
+  const groups = useMemo(() => {
+    const out = [];
+    visible.forEach((agent) => {
+      const isFlagged = FLAGGED_HEALTH_LEVELS.includes(computeAgentHealth(agent).level);
+      const last = out[out.length - 1];
+      if (last && last.isFlagged === isFlagged) {
+        last.agents.push(agent);
+      } else {
+        out.push({ isFlagged, agents: [agent] });
+      }
+    });
+    return out;
+  }, [visible]);
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
+  const handleDragEnd = ({ active, over }) => {
+    if (!over || active.id === over.id) return;
+    const group = groups.find((g) => g.agents.some((a) => a.id === active.id));
+    if (!group) return;
+    const ids = group.agents.map((a) => a.id);
+    if (!ids.includes(over.id)) return;
+    reorderAgents.mutate(arrayMove(ids, ids.indexOf(active.id), ids.indexOf(over.id)));
+  };
 
   const flaggedCount = summary.attention + summary.atRisk;
   const carriedOverCount = todayRows ? todayRows.filter((r) => !r.todayUpdate).length : null;
@@ -82,32 +112,40 @@ export default function AgentManagerHomePage() {
           <DashboardSummaryBanner summary={summary} activeFilter={healthFilter} onFilterChange={setHealthFilter} />
 
           <Paper variant="outlined">
-            {visible.map((agent, idx) => {
-              const level = computeAgentHealth(agent).level;
-              const isFlagged = FLAGGED_LEVELS.includes(level);
-              const prevFlagged = idx > 0 && FLAGGED_LEVELS.includes(computeAgentHealth(visible[idx - 1]).level);
-              let sectionLabel = null;
-              if (!healthFilter) {
-                if (idx === 0) sectionLabel = isFlagged ? `Needs attention today (${flaggedCount})` : 'All caught up';
-                else if (!isFlagged && prevFlagged) sectionLabel = 'All caught up';
-              }
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              {groups.map((group, groupIdx) => (
+                <SortableContext
+                  key={groupIdx}
+                  items={group.agents.map((a) => a.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {group.agents.map((agent, idx) => {
+                    const sectionLabel =
+                      !healthFilter && idx === 0
+                        ? group.isFlagged
+                          ? `Needs attention today (${flaggedCount})`
+                          : 'All caught up'
+                        : null;
 
-              return (
-                <Box key={agent.id}>
-                  {sectionLabel && (
-                    <Typography
-                      variant="overline"
-                      color="text.secondary"
-                      sx={{ display: 'block', px: { xs: 2, sm: 3 }, pt: 2, pb: 0.5 }}
-                    >
-                      {sectionLabel}
-                    </Typography>
-                  )}
-                  {idx > 0 && !sectionLabel && <Divider />}
-                  <AgentQueueRow agent={agent} insight={insightsSummary?.byAgent?.[agent.id]} />
-                </Box>
-              );
-            })}
+                    return (
+                      <Box key={agent.id}>
+                        {sectionLabel && (
+                          <Typography
+                            variant="overline"
+                            color="text.secondary"
+                            sx={{ display: 'block', px: { xs: 2, sm: 3 }, pt: 2, pb: 0.5 }}
+                          >
+                            {sectionLabel}
+                          </Typography>
+                        )}
+                        {(groupIdx > 0 || idx > 0) && !sectionLabel && <Divider />}
+                        <SortableAgentRow agent={agent} insight={insightsSummary?.byAgent?.[agent.id]} />
+                      </Box>
+                    );
+                  })}
+                </SortableContext>
+              ))}
+            </DndContext>
           </Paper>
         </>
       )}

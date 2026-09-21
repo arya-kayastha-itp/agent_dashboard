@@ -46,6 +46,15 @@ async function updateAgent(req, res, next) {
   }
 }
 
+async function reorderAgents(req, res, next) {
+  try {
+    const agents = await agentsService.reorderAgents(req.validatedBody.ids);
+    res.json(agents);
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function deleteAgent(req, res, next) {
   try {
     const deleted = await agentsService.deleteAgent(req.params.id);
@@ -93,4 +102,14 @@ async function regenerateAgentNarrative(req, res, next) {
   }
 }
 
-module.exports = { listAgents, getAgent, createAgent, updateAgent, deleteAgent, getAgentHistory, getAgentInsights, regenerateAgentNarrative };
+module.exports = {
+  listAgents,
+  getAgent,
+  createAgent,
+  updateAgent,
+  reorderAgents,
+  deleteAgent,
+  getAgentHistory,
+  getAgentInsights,
+  regenerateAgentNarrative,
+};

@@ -7,7 +7,7 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { computeAgentHealth, sortBySeverity, summarizeAgents } from '../agentHealth';
+import { FLAGGED_HEALTH_LEVELS, computeAgentHealth, sortBySeverity, summarizeAgents } from '../agentHealth';
 import AgentSummaryRow from '../components/AgentSummaryRow';
 import DashboardSummaryBanner from '../components/DashboardSummaryBanner';
 import ErrorAlert from '../components/ErrorAlert';
@@ -15,8 +15,6 @@ import PortfolioInsightsPanel from '../components/PortfolioInsightsPanel';
 import { useAgents } from '../hooks/useAgents';
 import { useAgentsInsightsSummary } from '../hooks/useInsights';
 import { usePageTitle } from '../hooks/usePageTitle';
-
-const FLAGGED_LEVELS = ['atRisk', 'attention'];
 
 // The Executive's Home: a rollup + every project, worst-first, in the same
 // row shape and the same click-through-to-detail behavior the Agent
@@ -61,8 +59,8 @@ export default function ExecutivePortfolioPage() {
           <Paper variant="outlined">
             {visible.map((agent, idx) => {
               const level = computeAgentHealth(agent).level;
-              const isFlagged = FLAGGED_LEVELS.includes(level);
-              const prevFlagged = idx > 0 && FLAGGED_LEVELS.includes(computeAgentHealth(visible[idx - 1]).level);
+              const isFlagged = FLAGGED_HEALTH_LEVELS.includes(level);
+              const prevFlagged = idx > 0 && FLAGGED_HEALTH_LEVELS.includes(computeAgentHealth(visible[idx - 1]).level);
               let sectionLabel = null;
               if (!healthFilter) {
                 if (idx === 0) sectionLabel = isFlagged ? `Needs attention (${flaggedCount})` : 'All caught up';

@@ -19,4 +19,8 @@ const updateAgentSchema = z.object({
   eta: z.string().date().optional().nullable(),
 });
 
-module.exports = { STATUS_VALUES, createAgentSchema, updateAgentSchema };
+const reorderAgentsSchema = z.object({
+  ids: z.array(z.string().uuid()).min(1),
+});
+
+module.exports = { STATUS_VALUES, createAgentSchema, updateAgentSchema, reorderAgentsSchema };

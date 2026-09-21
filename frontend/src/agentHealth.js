@@ -42,17 +42,28 @@ export function computeAgentHealth(agent, now = new Date()) {
   return { level: HEALTH_LEVELS.NEUTRAL, reason: 'Not started' };
 }
 
-const SEVERITY_RANK = {
-  [HEALTH_LEVELS.AT_RISK]: 0,
-  [HEALTH_LEVELS.ATTENTION]: 1,
-  [HEALTH_LEVELS.HEALTHY]: 2,
-  [HEALTH_LEVELS.NEUTRAL]: 3,
-};
+// The two-bucket split ("Needs attention today" vs "All caught up") that the
+// Agent Manager's and Executive's list pages both render as section labels.
+// This must be the only rank sortBySeverity enforces — anything finer (e.g.
+// ranking AT_RISK above ATTENTION, or HEALTHY above NEUTRAL) would fight the
+// manual sortOrder tie-break below, since a drag within one visual section
+// would keep snapping back to health-level order instead of staying put.
+export const FLAGGED_HEALTH_LEVELS = [HEALTH_LEVELS.AT_RISK, HEALTH_LEVELS.ATTENTION];
 
-// Worst-first ordering for the Agent Manager's action queue — blocked/stale
+function bucketRank(level) {
+  return FLAGGED_HEALTH_LEVELS.includes(level) ? 0 : 1;
+}
+
+// Worst-first ordering for the Agent Manager's action queue — flagged
 // projects surface above ones that don't need anyone's attention today.
+// Within a bucket, agents sort by their drag-and-drop sortOrder so manual
+// reordering is free to place any agent anywhere within its section.
 export function sortBySeverity(agents, now = new Date()) {
-  return [...agents].sort((a, b) => SEVERITY_RANK[computeAgentHealth(a, now).level] - SEVERITY_RANK[computeAgentHealth(b, now).level]);
+  return [...agents].sort((a, b) => {
+    const rankDiff = bucketRank(computeAgentHealth(a, now).level) - bucketRank(computeAgentHealth(b, now).level);
+    if (rankDiff !== 0) return rankDiff;
+    return (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
+  });
 }
 
 export function summarizeAgents(agents, now = new Date()) {
