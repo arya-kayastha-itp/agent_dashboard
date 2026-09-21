@@ -1,44 +1,59 @@
-const db = require('../db/pool');
+const crypto = require('crypto');
+const db = require('../db/databricksClient');
 
-// Numeric columns need an explicit raw cast (knex's `col as alias` string
-// parsing doesn't understand `col::type as alias`) so pg returns a JS number, not a string.
-const PRICING_COLUMNS = [
-  'id',
-  'model',
-  db.raw('input_price_per_1k_tokens::float8 as "inputPricePer1kTokens"'),
-  db.raw('output_price_per_1k_tokens::float8 as "outputPricePer1kTokens"'),
-  'effective_from as effectiveFrom',
-  'created_at as createdAt',
-  'created_by as createdBy',
-];
+const PRICING_SELECT = `
+  id,
+  model,
+  CAST(input_price_per_1k_tokens AS DOUBLE) as inputPricePer1kTokens,
+  CAST(output_price_per_1k_tokens AS DOUBLE) as outputPricePer1kTokens,
+  effective_from as effectiveFrom,
+  created_at as createdAt,
+  created_by as createdBy
+`;
 
 async function listPricing() {
-  return db('model_pricing').select(PRICING_COLUMNS).orderBy([{ column: 'model', order: 'asc' }, { column: 'effective_from', order: 'desc' }]);
+  return db.query(`SELECT ${PRICING_SELECT} FROM model_pricing ORDER BY model ASC, effective_from DESC`);
 }
 
 async function createPricing(data) {
-  const [row] = await db('model_pricing')
-    .insert({
+  const id = crypto.randomUUID();
+  const now = new Date().toISOString();
+  const effectiveFrom = data.effectiveFrom ? new Date(data.effectiveFrom).toISOString() : now;
+
+  await db.query(
+    `INSERT INTO model_pricing (id, model, input_price_per_1k_tokens, output_price_per_1k_tokens, effective_from, created_at, created_by)
+     VALUES (:id, :model, CAST(:inputPrice AS DECIMAL(12,6)), CAST(:outputPrice AS DECIMAL(12,6)), CAST(:effectiveFrom AS TIMESTAMP), CAST(:createdAt AS TIMESTAMP), :createdBy)`,
+    {
+      id,
       model: data.model,
-      input_price_per_1k_tokens: data.inputPricePer1kTokens,
-      output_price_per_1k_tokens: data.outputPricePer1kTokens,
-      effective_from: data.effectiveFrom || new Date(),
-      created_by: data.createdBy ?? null,
-    })
-    .returning(PRICING_COLUMNS);
-  return row;
+      inputPrice: data.inputPricePer1kTokens,
+      outputPrice: data.outputPricePer1kTokens,
+      effectiveFrom,
+      createdAt: now,
+      createdBy: data.createdBy ?? null,
+    },
+  );
+
+  return {
+    id,
+    model: data.model,
+    inputPricePer1kTokens: data.inputPricePer1kTokens,
+    outputPricePer1kTokens: data.outputPricePer1kTokens,
+    effectiveFrom,
+    createdAt: now,
+    createdBy: data.createdBy ?? null,
+  };
 }
 
 // Cost lookup for a call on `model` at time `occurredAt`: the price row for
-// that model with the latest effective_from <= occurredAt. Runs inside the
-// caller's transaction (trx) when part of the ingest flow.
-async function priceFor(model, occurredAt, trx = db) {
-  return trx('model_pricing')
-    .select(PRICING_COLUMNS)
-    .where('model', model)
-    .andWhere('effective_from', '<=', occurredAt)
-    .orderBy('effective_from', 'desc')
-    .first();
+// that model with the latest effective_from <= occurredAt.
+async function priceFor(model, occurredAt) {
+  return db.queryOne(
+    `SELECT ${PRICING_SELECT} FROM model_pricing
+     WHERE model = :model AND effective_from <= CAST(:occurredAt AS TIMESTAMP)
+     ORDER BY effective_from DESC LIMIT 1`,
+    { model, occurredAt: new Date(occurredAt).toISOString() },
+  );
 }
 
 module.exports = { listPricing, createPricing, priceFor };

@@ -49,6 +49,12 @@ async function query(sql, namedParameters = {}) {
   }
 }
 
+// Convenience for the common "give me the first row or undefined" case.
+async function queryOne(sql, namedParameters = {}) {
+  const rows = await query(sql, namedParameters);
+  return rows[0];
+}
+
 async function close() {
   if (client) {
     await client.close();
@@ -57,4 +63,4 @@ async function close() {
   }
 }
 
-module.exports = { query, close };
+module.exports = { query, queryOne, close };

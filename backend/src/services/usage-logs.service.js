@@ -1,27 +1,28 @@
-const db = require('../db/pool');
+const crypto = require('crypto');
+const db = require('../db/databricksClient');
 const pricingService = require('./pricing.service');
 const thresholdsService = require('./thresholds.service');
 const alertsService = require('./alerts.service');
 const { usageLogSchema } = require('../validators/finops.schema');
 
-const USAGE_LOG_COLUMNS = [
-  'id',
-  'agent_id as agentId',
-  'request_id as requestId',
-  'endpoint',
-  'model',
-  'tokens_input as tokensInput',
-  'tokens_output as tokensOutput',
-  'tokens_total as tokensTotal',
-  'status',
-  'error_category as errorCategory',
-  'error_code as errorCode',
-  db.raw('cost_usd::float8 as "costUsd"'),
-  'latency_ms as latencyMs',
-  'source',
-  'occurred_at as occurredAt',
-  'created_at as createdAt',
-];
+const USAGE_LOG_SELECT = `
+  id,
+  agent_id as agentId,
+  request_id as requestId,
+  endpoint,
+  model,
+  tokens_input as tokensInput,
+  tokens_output as tokensOutput,
+  tokens_total as tokensTotal,
+  status,
+  error_category as errorCategory,
+  error_code as errorCode,
+  CAST(cost_usd AS DOUBLE) as costUsd,
+  latency_ms as latencyMs,
+  source,
+  occurred_at as occurredAt,
+  created_at as createdAt
+`;
 
 // Below this many calls in the evaluation window, error-rate alerts don't
 // fire — otherwise a single failed call out of one total reads as "100% error rate".
@@ -32,73 +33,112 @@ function round6(n) {
 }
 
 // Per-entry batch failures are returned to the caller in the response body
-// (not thrown), so they need the same Postgres-code -> friendly-message
-// mapping errorHandler.js does for thrown errors — otherwise raw SQL leaks out.
+// (not thrown), so they need the same friendly-message mapping errorHandler.js
+// does for thrown errors — otherwise raw SQL leaks out.
 function mapIngestError(err) {
-  if (err.code === '23503') return { message: 'Referenced record does not exist', code: 'FOREIGN_KEY_VIOLATION' };
-  if (err.code === '23514' || err.code === '22P02') return { message: 'Invalid data', code: 'BAD_INPUT' };
+  if (err.code === 'FK_VIOLATION') return { message: 'Referenced record does not exist', code: 'FOREIGN_KEY_VIOLATION' };
   return { message: 'Failed to ingest usage log', code: 'INGEST_ERROR' };
 }
 
-// Mirrors recordUpdate's pattern (updates.service.js): one function, one
-// transaction, keeps the log + derived alerts consistent. See FINOPS_PLAN.md §5.
+// Delta doesn't support cross-table transactions, so this runs as a sequence
+// of independent statements rather than one atomic unit — see
+// backend/README.md's Databricks migration section for the tradeoffs.
+// agent_id existence is checked explicitly here because the FK on
+// api_usage_logs is NOT ENFORCED at the Delta layer.
 async function ingestUsageLog(data) {
-  return db.transaction(async (trx) => {
-    const occurredAt = data.occurredAt || new Date();
-    const tokensTotal = data.tokensInput + data.tokensOutput;
+  const agent = await db.queryOne('SELECT id FROM agents WHERE id = :agentId', { agentId: data.agentId });
+  if (!agent) {
+    const err = new Error(`Referenced agent "${data.agentId}" does not exist`);
+    err.code = 'FK_VIOLATION';
+    throw err;
+  }
 
-    const price = await pricingService.priceFor(data.model, occurredAt, trx);
-    const costUsd = price ? round6((data.tokensInput / 1000) * price.inputPricePer1kTokens + (data.tokensOutput / 1000) * price.outputPricePer1kTokens) : null;
+  const occurredAt = data.occurredAt ? new Date(data.occurredAt) : new Date();
+  const tokensTotal = data.tokensInput + data.tokensOutput;
 
-    const [log] = await trx('api_usage_logs')
-      .insert({
-        agent_id: data.agentId,
-        request_id: data.requestId ?? null,
-        endpoint: data.endpoint ?? null,
-        model: data.model,
-        tokens_input: data.tokensInput,
-        tokens_output: data.tokensOutput,
-        tokens_total: tokensTotal,
-        status: data.status,
-        error_category: data.errorCategory ?? null,
-        error_code: data.errorCode ?? null,
-        cost_usd: costUsd,
-        latency_ms: data.latencyMs ?? null,
-        source: data.source || 'external',
-        occurred_at: occurredAt,
-        raw_metadata: data.rawMetadata ? JSON.stringify(data.rawMetadata) : null,
-      })
-      .returning(USAGE_LOG_COLUMNS);
+  const price = await pricingService.priceFor(data.model, occurredAt);
+  const costUsd = price ? round6((data.tokensInput / 1000) * price.inputPricePer1kTokens + (data.tokensOutput / 1000) * price.outputPricePer1kTokens) : null;
 
-    if (!price) {
-      await alertsService.raiseAlert(trx, {
-        agentId: data.agentId,
-        alertType: 'unpriced_usage',
-        severity: 'warning',
-        message: `No pricing configured for model "${data.model}"`,
-        details: { model: data.model, logId: log.id },
-      });
-    } else {
-      await evaluateExpensiveCall(trx, log);
-    }
+  const id = crypto.randomUUID();
+  const createdAt = new Date().toISOString();
+  const occurredAtIso = occurredAt.toISOString();
 
-    if (data.status === 'error' && data.errorCategory === 'api_error') {
-      await evaluateErrorRate(trx, data.agentId, 'api_error', 'high_api_error_rate');
-    }
-    if (data.status === 'error' && data.errorCategory === 'validation_error') {
-      await evaluateErrorRate(trx, data.agentId, 'validation_error', 'high_validation_error_rate');
-    }
+  await db.query(
+    `INSERT INTO api_usage_logs
+       (id, agent_id, request_id, endpoint, model, tokens_input, tokens_output, tokens_total,
+        status, error_category, error_code, cost_usd, latency_ms, source, occurred_at, created_at, raw_metadata)
+     VALUES
+       (:id, :agentId, :requestId, :endpoint, :model, :tokensInput, :tokensOutput, :tokensTotal,
+        :status, :errorCategory, :errorCode, CAST(:costUsd AS DECIMAL(12,6)), :latencyMs, :source,
+        CAST(:occurredAt AS TIMESTAMP), CAST(:createdAt AS TIMESTAMP), :rawMetadata)`,
+    {
+      id,
+      agentId: data.agentId,
+      requestId: data.requestId ?? null,
+      endpoint: data.endpoint ?? null,
+      model: data.model,
+      tokensInput: data.tokensInput,
+      tokensOutput: data.tokensOutput,
+      tokensTotal,
+      status: data.status,
+      errorCategory: data.errorCategory ?? null,
+      errorCode: data.errorCode ?? null,
+      costUsd,
+      latencyMs: data.latencyMs ?? null,
+      source: data.source || 'external',
+      occurredAt: occurredAtIso,
+      createdAt,
+      rawMetadata: data.rawMetadata ? JSON.stringify(data.rawMetadata) : null,
+    },
+  );
 
-    return log;
-  });
+  const log = {
+    id,
+    agentId: data.agentId,
+    requestId: data.requestId ?? null,
+    endpoint: data.endpoint ?? null,
+    model: data.model,
+    tokensInput: data.tokensInput,
+    tokensOutput: data.tokensOutput,
+    tokensTotal,
+    status: data.status,
+    errorCategory: data.errorCategory ?? null,
+    errorCode: data.errorCode ?? null,
+    costUsd,
+    latencyMs: data.latencyMs ?? null,
+    source: data.source || 'external',
+    occurredAt: occurredAtIso,
+    createdAt,
+  };
+
+  if (!price) {
+    await alertsService.raiseAlert({
+      agentId: data.agentId,
+      alertType: 'unpriced_usage',
+      severity: 'warning',
+      message: `No pricing configured for model "${data.model}"`,
+      details: { model: data.model, logId: log.id },
+    });
+  } else {
+    await evaluateExpensiveCall(log);
+  }
+
+  if (data.status === 'error' && data.errorCategory === 'api_error') {
+    await evaluateErrorRate(data.agentId, 'api_error', 'high_api_error_rate');
+  }
+  if (data.status === 'error' && data.errorCategory === 'validation_error') {
+    await evaluateErrorRate(data.agentId, 'validation_error', 'high_validation_error_rate');
+  }
+
+  return log;
 }
 
-async function evaluateExpensiveCall(trx, log) {
-  const threshold = await thresholdsService.resolveThreshold(trx, log.agentId, 'expensive_call');
+async function evaluateExpensiveCall(log) {
+  const threshold = await thresholdsService.resolveThreshold(log.agentId, 'expensive_call');
   if (!threshold) return;
 
   if (Number(log.costUsd) > Number(threshold.thresholdValue)) {
-    await alertsService.raiseAlert(trx, {
+    await alertsService.raiseAlert({
       agentId: log.agentId,
       alertType: 'expensive_call',
       severity: 'critical',
@@ -108,25 +148,28 @@ async function evaluateExpensiveCall(trx, log) {
   }
 }
 
-async function evaluateErrorRate(trx, agentId, errorCategory, alertType) {
-  const threshold = await thresholdsService.resolveThreshold(trx, agentId, alertType);
+async function evaluateErrorRate(agentId, errorCategory, alertType) {
+  const threshold = await thresholdsService.resolveThreshold(agentId, alertType);
   if (!threshold || !threshold.windowMinutes) return;
 
-  const windowStart = new Date(Date.now() - threshold.windowMinutes * 60000);
+  const windowStart = new Date(Date.now() - threshold.windowMinutes * 60000).toISOString();
 
-  const row = await trx('api_usage_logs')
-    .where({ agent_id: agentId })
-    .andWhere('occurred_at', '>=', windowStart)
-    .select(trx.raw('count(*)::int as "totalCount"'), trx.raw('count(*) FILTER (WHERE error_category = ?)::int as "errorCount"', [errorCategory]))
-    .first();
+  const row = await db.queryOne(
+    `SELECT
+       COUNT(*) as totalCount,
+       SUM(CASE WHEN error_category = :errorCategory THEN 1 ELSE 0 END) as errorCount
+     FROM api_usage_logs
+     WHERE agent_id = :agentId AND occurred_at >= CAST(:windowStart AS TIMESTAMP)`,
+    { agentId, errorCategory, windowStart },
+  );
 
-  const total = row.totalCount;
-  const errors = row.errorCount;
+  const total = Number(row.totalCount);
+  const errors = Number(row.errorCount || 0);
   if (total < MIN_CALLS_FOR_RATE_ALERT) return;
 
   const rate = (errors / total) * 100;
   if (rate > Number(threshold.thresholdValue)) {
-    await alertsService.raiseAlert(trx, {
+    await alertsService.raiseAlert({
       agentId,
       alertType,
       severity: 'warning',
@@ -161,70 +204,84 @@ async function ingestBatch(rawEntries) {
 }
 
 async function listUsage({ agentId, from, to, status } = {}) {
-  const query = db('api_usage_logs').select(USAGE_LOG_COLUMNS).orderBy('occurred_at', 'desc').limit(500);
-  if (agentId) query.where('agent_id', agentId);
-  if (status) query.where('status', status);
-  if (from) query.andWhere('occurred_at', '>=', from);
-  if (to) query.andWhere('occurred_at', '<=', to);
-  return query;
+  const clauses = [];
+  const params = {};
+  if (agentId) {
+    clauses.push('agent_id = :agentId');
+    params.agentId = agentId;
+  }
+  if (status) {
+    clauses.push('status = :status');
+    params.status = status;
+  }
+  if (from) {
+    clauses.push('occurred_at >= CAST(:from AS TIMESTAMP)');
+    params.from = new Date(from).toISOString();
+  }
+  if (to) {
+    clauses.push('occurred_at <= CAST(:to AS TIMESTAMP)');
+    params.to = new Date(to).toISOString();
+  }
+  const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+  return db.query(`SELECT ${USAGE_LOG_SELECT} FROM api_usage_logs ${where} ORDER BY occurred_at DESC LIMIT 500`, params);
 }
 
 async function getUsageSummary({ agentId, from, to } = {}) {
-  const conditions = [];
-  const bindings = [];
+  const clauses = [];
+  const params = {};
   if (agentId) {
-    conditions.push('agent_id = ?');
-    bindings.push(agentId);
+    clauses.push('agent_id = :agentId');
+    params.agentId = agentId;
   }
   if (from) {
-    conditions.push('occurred_at >= ?');
-    bindings.push(from);
+    clauses.push('occurred_at >= CAST(:from AS TIMESTAMP)');
+    params.from = new Date(from).toISOString();
   }
   if (to) {
-    conditions.push('occurred_at <= ?');
-    bindings.push(to);
+    clauses.push('occurred_at <= CAST(:to AS TIMESTAMP)');
+    params.to = new Date(to).toISOString();
   }
-  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
 
-  const { rows } = await db.raw(
+  const rows = await db.query(
     `SELECT date_trunc('day', occurred_at) as day,
-            count(*)::int as calls,
-            coalesce(sum(cost_usd), 0)::float8 as cost,
-            coalesce(sum(tokens_total), 0)::int as tokens,
-            count(*) FILTER (WHERE status = 'error')::int as errors
+            COUNT(*) as calls,
+            COALESCE(SUM(cost_usd), 0) as cost,
+            COALESCE(SUM(tokens_total), 0) as tokens,
+            SUM(CASE WHEN status = 'error' THEN 1 ELSE 0 END) as errors
      FROM api_usage_logs
      ${where}
      GROUP BY 1
      ORDER BY 1`,
-    bindings,
+    params,
   );
-  return rows;
+  return rows.map((r) => ({ day: r.day, calls: Number(r.calls), cost: Number(r.cost), tokens: Number(r.tokens), errors: Number(r.errors) }));
 }
 
 async function getUsageTotalsByAgent({ from, to } = {}) {
-  const conditions = [];
-  const bindings = [];
+  const clauses = [];
+  const params = {};
   if (from) {
-    conditions.push('occurred_at >= ?');
-    bindings.push(from);
+    clauses.push('occurred_at >= CAST(:from AS TIMESTAMP)');
+    params.from = new Date(from).toISOString();
   }
   if (to) {
-    conditions.push('occurred_at <= ?');
-    bindings.push(to);
+    clauses.push('occurred_at <= CAST(:to AS TIMESTAMP)');
+    params.to = new Date(to).toISOString();
   }
-  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
 
-  const { rows } = await db.raw(
-    `SELECT agent_id as "agentId",
-            count(*)::int as calls,
-            coalesce(sum(cost_usd), 0)::float8 as cost,
-            count(*) FILTER (WHERE status = 'error')::int as errors
+  const rows = await db.query(
+    `SELECT agent_id as agentId,
+            COUNT(*) as calls,
+            COALESCE(SUM(cost_usd), 0) as cost,
+            SUM(CASE WHEN status = 'error' THEN 1 ELSE 0 END) as errors
      FROM api_usage_logs
      ${where}
      GROUP BY 1`,
-    bindings,
+    params,
   );
-  return rows;
+  return rows.map((r) => ({ agentId: r.agentId, calls: Number(r.calls), cost: Number(r.cost), errors: Number(r.errors) }));
 }
 
-module.exports = { ingestUsageLog, ingestBatch, listUsage, getUsageSummary, getUsageTotalsByAgent, USAGE_LOG_COLUMNS };
+module.exports = { ingestUsageLog, ingestBatch, listUsage, getUsageSummary, getUsageTotalsByAgent };

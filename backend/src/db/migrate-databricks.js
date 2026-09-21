@@ -9,7 +9,26 @@ function splitStatements(sql) {
   return sql
     .split(';')
     .map((s) => s.trim())
-    .filter(Boolean);
+    // A trailing `-- comment` block after the last real statement splits off
+    // as its own "statement" with no executable SQL in it — drop those.
+    .filter((s) => s.replace(/--.*/g, '').trim().length > 0);
+}
+
+// A statement can already have taken effect on a prior run that failed
+// partway through the same file (before it got recorded in
+// schema_migrations) — CREATE TABLE IF NOT EXISTS already tolerates that,
+// but ALTER TABLE ADD CONSTRAINT has no IF NOT EXISTS equivalent, so treat
+// "already exists" as success rather than aborting the rest of the file.
+async function runStatement(statement) {
+  try {
+    await db.query(statement);
+  } catch (err) {
+    if (/already exists/i.test(err.message || '')) {
+      console.log(`  (already applied, skipping) ${statement.split('\n')[0].slice(0, 80)}`);
+      return;
+    }
+    throw err;
+  }
 }
 
 async function getAppliedMigrations() {
@@ -34,7 +53,7 @@ async function run() {
   if (bootstrapFile) {
     const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, bootstrapFile), 'utf8');
     for (const statement of splitStatements(sql)) {
-      await db.query(statement);
+      await runStatement(statement);
     }
     console.log(`Applied ${bootstrapFile}`);
   }
@@ -47,7 +66,7 @@ async function run() {
     }
     const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, file), 'utf8');
     for (const statement of splitStatements(sql)) {
-      await db.query(statement);
+      await runStatement(statement);
     }
     await db.query('INSERT INTO schema_migrations (name, applied_at) VALUES (:name, current_timestamp())', {
       name: file,

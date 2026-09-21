@@ -1,15 +1,15 @@
 # Backend
 
-Node/Express API for the Agent Dashboard, backed by PostgreSQL via Knex. See the [root README](../README.md) for what the product does and how to run the whole stack; this doc is about how the backend code itself is organized.
+Node/Express API for the Agent Dashboard, backed by Databricks SQL (Unity Catalog, Delta tables). See the [root README](../README.md) for what the product does and how to run the whole stack; this doc is about how the backend code itself is organized.
 
 ## Running just the backend
 
-Requires a running Postgres reachable at `DATABASE_URL` (see `.env.example` — `docker compose up -d` from the repo root starts one).
+Requires the `DATABRICKS_*` vars set in `.env` (see `.env.example`) — a personal access token (Databricks User Settings → Developer → Access tokens, full/standard scope — a token scoped to exclude `sql` fails with an HTTP 403 whose body says `"does not have required scopes: sql"`), plus `USE CATALOG`/`USE SCHEMA`/`CREATE TABLE`/`MODIFY`/`SELECT` granted on the target catalog+schema.
 
 ```
-npm run migrate --workspace backend   # first time / after pulling new migrations
-npm run seed --workspace backend      # optional — loads sample agents/pricing/usage
-npm run dev --workspace backend       # nodemon, restarts on file change
+npm run migrate:databricks --workspace backend   # first time / after pulling new DDL
+npm run seed:databricks --workspace backend      # optional — loads sample agents/pricing/usage
+npm run dev --workspace backend                  # nodemon, restarts on file change
 ```
 
 Health check: `GET http://localhost:4000/api/health`.
@@ -25,11 +25,14 @@ src/
 ├── controllers/            # Thin — pull params/query/body, call a service, shape the response
 ├── services/              # All business logic and DB queries live here
 ├── validators/             # Zod schemas for request bodies
-├── middleware/             # validate.js (Zod), errorHandler.js (Postgres error -> HTTP mapping)
+├── middleware/             # validate.js (Zod), errorHandler.js (app error code -> HTTP mapping)
 └── db/
-    ├── pool.js              # Knex instance
-    ├── migrations/           # Schema, run in order (001_..., 002_..., ...)
-    └── seeds/                # Sample data for local dev
+    ├── databricksClient.js            # @databricks/sql connection + query/queryOne helpers
+    ├── databricks-migrations/          # DDL, run in order (000_..., 001_..., ...)
+    ├── migrate-databricks.js           # applies DDL, tracked in schema_migrations
+    ├── seed-databricks.js              # sample data for local dev
+    ├── copy-postgres-to-databricks.js  # one-time cutover: live Postgres -> Databricks
+    └── load-backup-to-databricks.js    # one-time cutover: a pg_dump backup file -> Databricks
 ```
 
 The layering is strict: routes never talk to `db/` directly, controllers never write SQL, services never touch `req`/`res`. When adding an endpoint, that's the order to build it in — migration (if needed) → service → controller → route.
@@ -54,7 +57,7 @@ The layering is strict: routes never talk to `db/` directly, controllers never w
 | `/api/finops` | `finops.routes.js` | Usage ingestion (single + batch), usage summary, pricing, thresholds, alerts |
 | `/api/insights` | `insights.routes.js` | Portfolio-wide insights + narrative regeneration, and per-agent totals keyed by agent id (`/by-agent`, powers the Dashboard's agent cards) |
 
-All error responses share one shape: `{ error: { message, code } }`. `middleware/errorHandler.js` maps common Postgres error codes (unique violation, FK violation, check/invalid-input) to the right HTTP status automatically — don't catch-and-rethrow those in a service just to add a message.
+All error responses share one shape: `{ error: { message, code } }`. Delta enforces neither foreign keys nor uniqueness and has no Postgres-style SQLSTATE codes, so those checks live in the service layer, which throws a plain `Error` with an app-defined `.code` (e.g. `FK_VIOLATION` when `usage-logs.service.js` finds no matching `agent_id`); `middleware/errorHandler.js` maps those codes to the right HTTP status automatically — don't catch-and-rethrow those in a service just to add a message.
 
 ## Insights & narrative generation
 
@@ -70,20 +73,25 @@ Request bodies are validated with Zod schemas in `validators/`, applied via `mid
 
 `services/mailer.service.js` is a stub — it logs what it would send instead of sending it. No SMTP is configured. Alert-raising code (`alerts.service.js`) already calls it, so wiring real delivery in only touches that one file.
 
-## Databricks migration (in progress)
+## Databricks migration (done)
 
-We're planning a full cutover of the live datastore from Postgres to Databricks SQL. This is **not done yet** — the app still runs entirely on Postgres today. What exists so far:
+The live datastore has been cut over from Postgres/Knex to Databricks SQL (Unity Catalog, Delta tables). What exists:
 
 - `src/db/databricks-migrations/*.sql` — schema DDL for all 6 tables, translated for Delta Lake (no `ENUM`/`jsonb`/unique indexes/enforced FKs; `CHECK` constraints and informational `PRIMARY KEY`/`FOREIGN KEY ... NOT ENFORCED` instead)
-- `src/db/databricksClient.js` — thin wrapper around `@databricks/sql` for parameterized queries
-- `src/db/migrate-databricks.js` — applies the DDL files in order, tracked in a `schema_migrations` table (run via `npm run migrate:databricks --workspace backend`)
+- `src/db/databricksClient.js` — thin wrapper around `@databricks/sql` for parameterized queries (`query`/`queryOne`), one long-lived connection + a session per query
+- `src/db/migrate-databricks.js` — applies the DDL files in order, tracked in a `schema_migrations` table (run via `npm run migrate:databricks --workspace backend`); statements are individually idempotent (`CREATE TABLE IF NOT EXISTS`, and re-running a file whose `ALTER TABLE ADD CONSTRAINT` already applied is tolerated rather than failing)
+- `src/db/copy-postgres-to-databricks.js` — one-time copy from a **live** Postgres (`DATABASE_URL`)
+- `src/db/load-backup-to-databricks.js` — one-time load straight from a `scripts/backup-db.js` dump file (parses the pg_dump `COPY ... FROM stdin` blocks itself, no live Postgres/Docker needed) — this is what was actually used for the cutover
+- `src/db/seed-databricks.js` — local-dev sample data, driven through the real service functions (`agentsService.createAgent`, `usageLogsService.ingestUsageLog`, etc.) so it exercises the same pricing/alert-evaluation logic as real traffic
+- All of `services/*.js` were rewritten off Knex/`pg` onto raw parameterized SQL against Databricks. Because Delta has no cross-table transactions, `RETURNING`, or enforced FK/unique constraints, this was a real logic change, not just a driver swap — see `ARCHITECTURE.md §2-3` for what changed (app-level FK checks, `MERGE INTO` replacing `ON CONFLICT` upserts, sequential non-atomic multi-statement writes with manual compensation where it matters).
 
-Still to come before cutover: the one-time Postgres → Databricks data copy script, and rewriting `services/*.js` off Knex/`pg` onto raw parameterized SQL against Databricks (Delta has no cross-table transactions, `RETURNING`, or enforced FK/unique constraints, so several services need real logic changes, not just a driver swap — see the migration plan for specifics before touching that part).
+`DATABASE_URL` / the Postgres container are now legacy — kept only for `scripts/backup-db.js`/`restore-db.js` and as the source for `copy-postgres-to-databricks.js`; the running app never touches Postgres.
 
-To try the schema DDL yourself: set the `DATABRICKS_*` vars in `.env` (see `.env.example`) using **your own** personal access token (Databricks User Settings → Developer → Access tokens — tokens are per-user, don't reuse someone else's), and get `USE CATALOG` on the catalog plus `USE SCHEMA`/`CREATE TABLE`/`MODIFY`/`SELECT` on the target schema granted to your account by whoever administers Unity Catalog. Then:
+Setup: set the `DATABRICKS_*` vars in `.env` (see `.env.example`) using **your own** personal access token (Databricks User Settings → Developer → Access tokens — tokens are per-user, don't reuse someone else's, and must have standard/full scope — a token missing the `sql` scope fails with an HTTP 403 body `"does not have required scopes: sql"`), and get `USE CATALOG` on the catalog plus `USE SCHEMA`/`CREATE TABLE`/`MODIFY`/`SELECT` on the target schema granted to your account by whoever administers Unity Catalog. Then:
 
 ```
 npm run migrate:databricks --workspace backend
+npm run seed:databricks --workspace backend       # optional, local sample data
 ```
 
 ## Linting / tests

@@ -43,41 +43,35 @@ Portfolio Insights is deliberately hidden from Agent Manager — it's aggregate 
 
 **Frontend** — React 19, Vite, React Router, MUI (Material UI), TanStack React Query, Axios, react-hook-form, Recharts, date-fns, oxlint
 
-**Backend** — Node.js, Express, Knex (query builder/migrations), PostgreSQL, Zod (validation), cors, dotenv, nodemon, Anthropic SDK (optional — powers AI narrative generation when `ANTHROPIC_API_KEY` is set; the app falls back to a computed/template narrative otherwise, which is what's currently wired into the UI)
+**Backend** — Node.js, Express, Databricks SQL (Unity Catalog, Delta tables) via `@databricks/sql`, Zod (validation), cors, dotenv, nodemon, Anthropic SDK (optional — powers AI narrative generation when `ANTHROPIC_API_KEY` is set; the app falls back to a computed/template narrative otherwise, which is what's currently wired into the UI)
 
-**Infra** — Docker Compose (PostgreSQL), npm workspaces monorepo (`backend` + `frontend`)
+**Infra** — a Databricks SQL warehouse (external, configured via env vars — nothing to run locally for it), npm workspaces monorepo (`backend` + `frontend`). Postgres (via the included `docker-compose.yml`) is legacy: kept only as a rollback reference and as the source for the one-time cutover scripts — see `backend/README.md`.
 
 ## Steps to Run
 
-**Prerequisites**: Node.js 20+, and a PostgreSQL 13+ database (locally installed, or via Docker as below)
+**Prerequisites**: Node.js 20+, and access to a Databricks SQL warehouse (a personal access token with standard/full scope, plus `USE CATALOG`/`USE SCHEMA`/`CREATE TABLE`/`MODIFY`/`SELECT` on the target catalog+schema)
 
-1. Start Postgres:
-
-   ```
-   docker compose up -d
-   ```
-
-2. Copy env files:
+1. Copy env files and fill in your Databricks credentials:
 
    ```
    cp backend/.env.example backend/.env
    cp frontend/.env.example frontend/.env
    ```
 
-3. Install dependencies (installs both `backend` and `frontend` workspaces):
+2. Install dependencies (installs both `backend` and `frontend` workspaces):
 
    ```
    npm install
    ```
 
-4. Run migrations and seed sample data:
+3. Run migrations and seed sample data:
 
    ```
-   npm run migrate
-   npm run seed
+   npm run migrate:databricks --workspace backend
+   npm run seed:databricks --workspace backend
    ```
 
-5. Start both apps:
+4. Start both apps:
 
    ```
    npm run dev

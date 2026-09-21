@@ -7,18 +7,18 @@ This document explains *how the system fits together*: process boundaries, reque
 Three processes, no gateway or shared runtime between them:
 
 ```
-┌─────────────────────┐        HTTP (axios)        ┌──────────────────────┐        SQL (Knex)        ┌─────────────────┐
-│   Frontend (SPA)    │ ──────────────────────────▶ │   Backend (Express)  │ ────────────────────────▶ │   PostgreSQL    │
-│  React + Vite        │  /api/*  (proxied in dev)   │   Node.js, port 4000  │                            │   port 5432     │
-│  served on 5174       │ ◀────────────────────────── │                       │ ◀──────────────────────── │  (Docker)       │
+┌─────────────────────┐        HTTP (axios)        ┌──────────────────────┐   SQL (@databricks/sql)   ┌─────────────────┐
+│   Frontend (SPA)    │ ──────────────────────────▶ │   Backend (Express)  │ ────────────────────────▶ │  Databricks SQL │
+│  React + Vite        │  /api/*  (proxied in dev)   │   Node.js, port 4000  │                            │  warehouse      │
+│  served on 5174       │ ◀────────────────────────── │                       │ ◀──────────────────────── │  (Delta tables) │
 └─────────────────────┘        JSON responses        └──────────────────────┘        rows/errors        └─────────────────┘
 ```
 
-- **Frontend** is a Vite dev server (port 5174) in dev, or static build output in prod. It never talks to Postgres directly.
+- **Frontend** is a Vite dev server (port 5174) in dev, or static build output in prod. It never talks to Databricks directly.
 - **Backend** is a single Express process (port 4000). It owns all business logic and is the only thing that talks to the database.
-- **Database** is Postgres, run via `docker-compose.yml` (Postgres only — the app processes are not containerized).
+- **Database** is a Databricks SQL warehouse (Unity Catalog, Delta tables) — see `backend/src/db/databricks-migrations/*.sql` for schema and `backend/README.md` for the migration history. Postgres (`docker-compose.yml`) is kept around only as the source for the one-time data copy and for `scripts/backup-db.js`/`restore-db.js`; the running app no longer reads or writes it.
 - In dev, Vite's proxy forwards `/api/*` → `http://localhost:4000`, so the frontend code only ever knows about a relative `/api` base URL (`VITE_API_BASE_URL`). In prod, whatever serves the static frontend build needs to proxy `/api` to the backend, or `VITE_API_BASE_URL` needs to point at the backend's real origin.
-- There is **no auth, no gateway, no message queue, no cache layer, no background workers** — every request is a synchronous HTTP round-trip ending in a direct Postgres query.
+- There is **no auth, no gateway, no message queue, no cache layer, no background workers** — every request is a synchronous HTTP round-trip ending in one or more Databricks SQL statements. Unlike Postgres, Delta has no cross-statement transactions, so multi-statement writes (§3) are sequenced rather than wrapped in a transaction.
 
 ## 2. Backend: Layered Request Flow
 
@@ -43,45 +43,48 @@ validateBody(zodSchema)         — middleware/validate.js: Zod .safeParse(req.b
 controller (controllers/*.controller.js)  — thin: pulls req params/validatedBody, calls a service, shapes the HTTP response
   │
   ▼
-service (services/*.service.js)  — business logic + Knex queries, wrapped in a db.transaction() where multiple tables change
+service (services/*.service.js)  — business logic + parameterized SQL against Databricks, one statement at a time
   │
   ▼
-db/pool.js  (knex(knexConfig) singleton) ──▶ PostgreSQL
+db/databricksClient.js  (@databricks/sql, one long-lived connection + a session per query) ──▶ Databricks SQL warehouse
   │
   ▼
 notFoundHandler                 — unmatched routes → 404 (registered after all routes)
-errorHandler                    — catches thrown/rejected errors, maps Postgres error codes to HTTP status
+errorHandler                    — catches thrown/rejected errors, maps app-level error codes to HTTP status
 ```
 
-**Why this shape**: each layer has exactly one job, so a change in one direction (e.g., swapping Knex for another query builder) doesn't ripple into controllers or routes. It also means adding a new resource is a copy of the same five files (migration → schema → service → controller → route) — see [PROJECT_OVERVIEW.md § Extensibility](PROJECT_OVERVIEW.md#9-extensibility--where-to-plug-in).
+**Why this shape**: each layer has exactly one job, so a change in one direction doesn't ripple into controllers or routes. It also means adding a new resource is a copy of the same five files (migration → schema → service → controller → route) — see [PROJECT_OVERVIEW.md § Extensibility](PROJECT_OVERVIEW.md#9-extensibility--where-to-plug-in).
 
-**Error handling** (`middleware/errorHandler.js`) centralizes Postgres error-code → HTTP-status mapping so no controller needs to know Postgres error codes:
+**Error handling** (`middleware/errorHandler.js`): Delta doesn't enforce foreign keys or uniqueness and has no Postgres-style SQLSTATE error codes to map, so those checks moved into the service layer, which throws plain `Error`s carrying an app-defined `code`:
 
-| Postgres code | Meaning | HTTP status |
+| App error code | Where it's thrown | HTTP status |
 |---|---|---|
-| `23505` | unique violation | 409 |
-| `23503` | foreign key violation | 400 |
-| `23514` / `22P02` | check constraint / invalid input syntax | 400 |
+| `FK_VIOLATION` | `usage-logs.service.js` before inserting a usage log, if `agent_id` doesn't exist | 400 |
+| `VALIDATION_ERROR` | `middleware/validate.js`, from a failed Zod `.safeParse()` | 400 |
+| (anything else) | falls through to `err.status`/`err.code` or a generic 500 | 500 (default) |
 
-## 3. The Core Transaction: `recordUpdate`
+Row uniqueness that used to be a Postgres unique index (one `agent_updates` row per agent/day, one `finops_thresholds` row per agent+alert-type) is now enforced by `MERGE INTO` statements in the service layer instead — see §3.
 
-The single most important piece of backend logic is `recordUpdate(trx, {...})` in `backend/src/services/updates.service.js`. Both the single-agent update endpoint and the daily-sheet batch endpoint funnel through it — it's the one place that writes data, which is what keeps the two tables consistent.
+## 3. Writes Without Transactions: `recordUpdate` and friends
 
-```
-recordUpdate(trx, { agentId, updateDate, status, progress, statusDescription, source })
-  │
-  ├─▶ INSERT INTO agent_updates (...)
-  │     ON CONFLICT (agent_id, update_date) DO UPDATE   ← upsert: one row per agent per day
-  │
-  └─▶ UPDATE agents SET current_status=…, current_progress=…, last_update_at=now()
-        WHERE id = agentId                               ← refresh denormalized cache
-```
+Postgres transactions used to keep multi-statement writes atomic. Delta Lake has no equivalent (no multi-table, multi-statement transactions), so every service that used to open a `db.transaction()` now runs its statements sequentially and reasons explicitly about partial failure instead:
 
-Both writes happen inside one Postgres transaction, so the `agents.current_*` snapshot and the `agent_updates` history row can never drift apart, even under concurrent requests.
+- **`agents.service.js#createAgent`** inserts the `agents` row, then the initial `agent_updates` row. If the second insert throws, it deletes the `agents` row it just created so a failed create never leaves an agent with no history.
+- **`updates.service.js#recordUpdate`** — the single most important piece of backend logic, used by both the single-agent update endpoint and the daily-sheet batch endpoint:
 
-- `recordUpdateStandalone(payload)` wraps this in its own transaction for `POST /api/updates`.
-- `recordBatch({ updateDate, entries })` opens **one transaction for the whole daily-sheet submission** and loops `recordUpdate` per entry — so a batch submit is all-or-nothing (if one row fails, the whole batch rolls back).
-- The `source` column (default `'manual'`) and this same function are the intended seam for future automated ingestion (e.g., a webhook from the agents themselves) — see `PROJECT_OVERVIEW.md § 9`.
+  ```
+  recordUpdate({ agentId, updateDate, status, progress, statusDescription, source })
+    │
+    ├─▶ MERGE INTO agent_updates ...   ← upsert: one row per agent per day (replaces ON CONFLICT)
+    │
+    └─▶ UPDATE agents SET current_status=…, current_progress=…, last_update_at=…
+          WHERE id = agentId            ← refresh denormalized cache, as a separate statement
+  ```
+
+  These two writes are **not atomic with each other** — if the process dies between them, the history row is correct but `agents.current_*` is stale until the next successful update. This is an accepted tradeoff of the Databricks cutover, not an oversight.
+- **`recordBatch({ updateDate, entries })`** loops `recordUpdate` per entry, sequentially. A batch submit is **no longer all-or-nothing**: an entry that throws stops the loop, but entries already processed before it stay committed (Delta has no rollback to undo them).
+- **`usage-logs.service.js#ingestUsageLog`** now explicitly checks `agent_id` exists before inserting (the FK is declared `NOT ENFORCED` in the DDL, so nothing else guarantees this), then inserts the log, then evaluates pricing/threshold alerts as separate follow-up statements.
+- The `source` column (default `'manual'`) and `recordUpdate` are still the intended seam for future automated ingestion (e.g., a webhook from the agents themselves) — see `PROJECT_OVERVIEW.md § 9`.
 
 ## 4. Data Model
 
@@ -107,8 +110,9 @@ Both writes happen inside one Postgres transaction, so the `agents.current_*` sn
 ```
 
 - **`agents.current_*`** columns are a **denormalized read cache** of the latest `agent_updates` row for that agent — this is *why* the dashboard/list views can be a single `SELECT * FROM agents` with no join or aggregation.
-- **`agent_updates`** is the append-style history log (though same-day resubmits update in place via the unique constraint, they don't append a second row).
-- `agent_status` is a native Postgres ENUM (`Not Started | In Progress | Blocked | Completed | On Hold`), shared by both tables' status columns. It is the one piece of domain vocabulary duplicated outside the DB — mirrored in `backend/src/validators/agent.schema.js` (Zod) and again in `frontend/src/constants.js` (`STATUS_VALUES`) since there's no shared types package between workspaces.
+- **`agent_updates`** is the append-style history log (though same-day resubmits update in place via the `MERGE INTO` in `recordUpdate`, they don't append a second row).
+- Diagram above shows the Postgres-era types (`uuid`, native `agent_status` enum, a real `UNIQUE` constraint) for readability. On Databricks, ids are `STRING` (a `crypto.randomUUID()` generated in Node, since Delta has no `gen_random_uuid()` default), statuses are a plain `STRING` with a `CHECK` constraint instead of an enum, and the `(agent_id, update_date)` uniqueness is enforced by `recordUpdate`'s `MERGE INTO`, not a unique index (Delta has none) — see `backend/src/db/databricks-migrations/*.sql` for the actual DDL and its comments on what's enforced by the database vs. by application code.
+- `agent_status` values (`Not Started | In Progress | Blocked | Completed | On Hold`) are the one piece of domain vocabulary duplicated outside the DB — mirrored in `backend/src/validators/agent.schema.js` (Zod) and again in `frontend/src/constants.js` (`STATUS_VALUES`) since there's no shared types package between workspaces.
 
 ## 5. Frontend Architecture
 
@@ -163,7 +167,7 @@ These are absent by design/oversight, not accident — worth knowing before buil
 - **No auth** — anyone who can reach the backend can read/write everything. If integrating this into a larger system, auth should sit as Express middleware in `app.js` (before route mounts) and an axios interceptor in `frontend/src/api/client.js`.
 - **No API gateway / BFF** — the frontend calls the backend directly (via Vite's dev proxy or a prod-configured `VITE_API_BASE_URL`). Fine at this scale; would need revisiting if this backend starts serving multiple frontends with different needs.
 - **No background jobs / queue** — all writes are synchronous within the HTTP request. The `source` column on `agent_updates` anticipates automated (non-manual) writes, but nothing currently produces them.
-- **No caching layer** (Redis, etc.) between backend and Postgres — the `agents.current_*` denormalization *is* the app's only caching strategy, and it's kept consistent by always writing through `recordUpdate`'s transaction rather than by a cache-invalidation scheme.
+- **No caching layer** (Redis, etc.) between backend and Databricks — the `agents.current_*` denormalization *is* the app's only caching strategy. It's kept close to consistent by always writing through `recordUpdate`, though (per §3) that's no longer a single atomic transaction the way it was on Postgres.
 
 ## 8. Related Docs
 

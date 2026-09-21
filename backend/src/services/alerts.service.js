@@ -1,57 +1,87 @@
-const db = require('../db/pool');
+const crypto = require('crypto');
+const db = require('../db/databricksClient');
 const mailer = require('./mailer.service');
-
-const ALERT_COLUMNS = ['id', 'agent_id as agentId', 'alert_type as alertType', 'severity', 'message', 'details', 'status', 'created_at as createdAt', 'resolved_at as resolvedAt'];
 
 // unpriced_usage is an in-app ops todo, not an incident — everything else pages via email too.
 const EMAIL_ALERT_TYPES = new Set(['expensive_call', 'high_api_error_rate', 'high_validation_error_rate']);
 
-async function listAlerts({ status } = {}) {
-  const query = db('finops_alerts as al')
-    .join('agents as a', 'a.id', 'al.agent_id')
-    .select(
-      'al.id',
-      'al.agent_id as agentId',
-      'a.name as agentName',
-      'al.alert_type as alertType',
-      'al.severity',
-      'al.message',
-      'al.details',
-      'al.status',
-      'al.created_at as createdAt',
-      'al.resolved_at as resolvedAt',
-    )
-    .orderBy('al.created_at', 'desc');
+function parseDetails(row) {
+  if (row && typeof row.details === 'string') {
+    try {
+      return { ...row, details: JSON.parse(row.details) };
+    } catch {
+      return row;
+    }
+  }
+  return row;
+}
 
-  if (status) query.where('al.status', status);
-  return query;
+async function listAlerts({ status } = {}) {
+  const params = {};
+  let sql = `
+    SELECT
+      al.id,
+      al.agent_id as agentId,
+      a.name as agentName,
+      al.alert_type as alertType,
+      al.severity,
+      al.message,
+      al.details,
+      al.status,
+      al.created_at as createdAt,
+      al.resolved_at as resolvedAt
+    FROM finops_alerts al
+    JOIN agents a ON a.id = al.agent_id
+  `;
+  if (status) {
+    sql += ' WHERE al.status = :status';
+    params.status = status;
+  }
+  sql += ' ORDER BY al.created_at DESC';
+
+  const rows = await db.query(sql, params);
+  return rows.map(parseDetails);
 }
 
 async function updateAlertStatus(id, status) {
-  const patch = { status };
-  if (status === 'resolved') patch.resolved_at = db.fn.now();
+  if (status === 'resolved') {
+    await db.query('UPDATE finops_alerts SET status = :status, resolved_at = CAST(:now AS TIMESTAMP) WHERE id = :id', {
+      status,
+      now: new Date().toISOString(),
+      id,
+    });
+  } else {
+    await db.query('UPDATE finops_alerts SET status = :status WHERE id = :id', { status, id });
+  }
 
-  const [alert] = await db('finops_alerts').where({ id }).update(patch).returning(ALERT_COLUMNS);
-  return alert;
+  const row = await db.queryOne(
+    `SELECT id, agent_id as agentId, alert_type as alertType, severity, message, details, status,
+            created_at as createdAt, resolved_at as resolvedAt
+     FROM finops_alerts WHERE id = :id`,
+    { id },
+  );
+  return parseDetails(row);
 }
 
 // Dedupes: no repeat "open" alert of the same type/agent while one's already
-// open. Runs inside the caller's ingest transaction. Email delivery is
-// best-effort — a failure here must never roll back the ingestion write.
-async function raiseAlert(trx, { agentId, alertType, severity, message, details }) {
-  const existing = await trx('finops_alerts').where({ agent_id: agentId, alert_type: alertType, status: 'open' }).first();
+// open. Email delivery is best-effort — a failure here must never fail ingestion.
+async function raiseAlert({ agentId, alertType, severity, message, details }) {
+  const existing = await db.queryOne('SELECT id FROM finops_alerts WHERE agent_id = :agentId AND alert_type = :alertType AND status = \'open\'', {
+    agentId,
+    alertType,
+  });
   if (existing) return null;
 
-  const [alert] = await trx('finops_alerts')
-    .insert({
-      agent_id: agentId,
-      alert_type: alertType,
-      severity,
-      message,
-      details: details ? JSON.stringify(details) : null,
-      status: 'open',
-    })
-    .returning(ALERT_COLUMNS);
+  const id = crypto.randomUUID();
+  const createdAt = new Date().toISOString();
+
+  await db.query(
+    `INSERT INTO finops_alerts (id, agent_id, alert_type, severity, message, details, status, created_at)
+     VALUES (:id, :agentId, :alertType, :severity, :message, :details, 'open', CAST(:createdAt AS TIMESTAMP))`,
+    { id, agentId, alertType, severity, message, details: details ? JSON.stringify(details) : null, createdAt },
+  );
+
+  const alert = { id, agentId, alertType, severity, message, details: details ?? null, status: 'open', createdAt, resolvedAt: null };
 
   if (EMAIL_ALERT_TYPES.has(alertType)) {
     try {
@@ -64,4 +94,4 @@ async function raiseAlert(trx, { agentId, alertType, severity, message, details 
   return alert;
 }
 
-module.exports = { listAlerts, updateAlertStatus, raiseAlert, ALERT_COLUMNS };
+module.exports = { listAlerts, updateAlertStatus, raiseAlert };

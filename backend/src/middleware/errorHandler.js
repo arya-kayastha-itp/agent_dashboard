@@ -6,14 +6,8 @@ function notFoundHandler(req, res) {
 function errorHandler(err, req, res, next) {
   console.error(err);
 
-  if (err.code === '23505') {
-    return res.status(409).json({ error: { message: 'Duplicate entry', code: 'CONFLICT' } });
-  }
-  if (err.code === '23503') {
-    return res.status(400).json({ error: { message: 'Referenced record does not exist', code: 'FOREIGN_KEY_VIOLATION' } });
-  }
-  if (err.code === '23514' || err.code === '22P02') {
-    return res.status(400).json({ error: { message: 'Invalid data', code: 'BAD_INPUT' } });
+  if (err.code === 'FK_VIOLATION') {
+    return res.status(400).json({ error: { message: err.message || 'Referenced record does not exist', code: 'FOREIGN_KEY_VIOLATION' } });
   }
 
   const status = err.status || 500;

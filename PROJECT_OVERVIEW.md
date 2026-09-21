@@ -33,8 +33,8 @@ It's an **npm workspaces monorepo** with two workspaces: `backend` and `frontend
 
 ### Backend (`backend/`)
 - **Node.js + Express 4.21.1** (CommonJS)
-- **Knex 3.1.0** — query builder / migrations (not a full ORM), driver: `pg` 8.13.1
-- **PostgreSQL 16** (via `docker-compose.yml`; README says 13+ also works)
+- **Databricks SQL** (Unity Catalog, Delta tables) via **`@databricks/sql` 2.1.0** — no ORM/query builder, services write parameterized SQL directly through `backend/src/db/databricksClient.js`
+- Postgres (`docker-compose.yml`, `pg` 8.13.1) is legacy — kept only as the source for the one-time `copy:postgres-to-databricks` script and for `scripts/backup-db.js`/`restore-db.js`; the running app doesn't use it
 - **Zod 3.23.8** — request validation
 - **cors**, **dotenv**
 - Dev: **nodemon**
@@ -42,7 +42,7 @@ It's an **npm workspaces monorepo** with two workspaces: `backend` and `frontend
 - No test framework configured
 
 ### Infra / Deployment
-- `docker-compose.yml` at repo root runs **Postgres only** (named volume, port 5432, default `postgres/postgres` creds, db `agent_dashboard`)
+- `docker-compose.yml` at repo root runs **Postgres only** (named volume, port 5432, default `postgres/postgres` creds, db `agent_dashboard`) — legacy, see above; the live datastore is a Databricks SQL warehouse configured entirely via env vars, nothing to run locally for it
 - No Dockerfile for the app itself, no CI config, no hosting config (no `vercel.json`, etc.)
 - This is currently a **local/dev-only setup** — frontend/backend run via `npm run dev` (Vite dev server + nodemon). Anyone deploying this for real will need to add a Dockerfile, CI, and hosting config.
 
@@ -56,21 +56,23 @@ agent-dashboard/
 ├── scripts/                 # backup-db.js, restore-db.js (pg_dump/psql via docker compose)
 ├── backups/                  # gitignored local .sql dumps
 ├── backend/
-│   ├── knexfile.js
 │   ├── .env.example
 │   └── src/
-│       ├── app.js            # express app; mounts /api/agents, /api/updates, /api/health
+│       ├── app.js            # express app; mounts /api/agents, /api/updates, /api/finops, /api/insights, /api/health
 │       ├── server.js         # entrypoint
-│       ├── config/env.js     # PORT, DATABASE_URL, CORS_ORIGIN
-│       ├── routes/            # agents.routes.js, updates.routes.js
+│       ├── config/env.js     # PORT, CORS_ORIGIN, DATABRICKS_*
+│       ├── routes/            # agents.routes.js, updates.routes.js, finops.routes.js, insights.routes.js
 │       ├── controllers/       # thin HTTP glue
-│       ├── services/          # DB/business logic (Knex)
+│       ├── services/          # DB/business logic (raw parameterized SQL against Databricks)
 │       ├── validators/        # Zod schemas
 │       ├── middleware/        # validate.js, errorHandler.js
 │       └── db/
-│           ├── pool.js
-│           ├── migrations/    # 001_create_agents.js, 002_create_agent_updates.js
-│           └── seeds/         # seed_agents.js
+│           ├── databricksClient.js         # @databricks/sql connection + query/queryOne helpers
+│           ├── databricks-migrations/      # DDL, applied via migrate:databricks
+│           ├── migrate-databricks.js
+│           ├── seed-databricks.js
+│           ├── copy-postgres-to-databricks.js    # one-time cutover: live Postgres -> Databricks
+│           └── load-backup-to-databricks.js      # one-time cutover: a pg_dump backup file -> Databricks
 └── frontend/
     ├── vite.config.js        # dev server port 5174, proxies /api → localhost:4000
     ├── .oxlintrc.json
@@ -100,12 +102,12 @@ agent-dashboard/
 
 ## 5. Data Layer
 
-**Database**: PostgreSQL, two tables (raw SQL in Knex migrations, `backend/src/db/migrations/`):
+**Database**: Databricks SQL (Unity Catalog, Delta tables), DDL in `backend/src/db/databricks-migrations/*.sql`, applied via `npm run migrate:databricks --workspace backend`. Six tables: `agents`, `agent_updates`, `model_pricing`, `api_usage_logs`, `finops_thresholds`, `finops_alerts`.
 
-- **`agents`** — `id uuid PK` (via `pgcrypto`), `name`, `description`, `assigned_to`, `eta date`, `current_status` (Postgres ENUM `agent_status`: `Not Started | In Progress | Blocked | Completed | On Hold`), `current_progress smallint CHECK 0-100`, `current_status_description`, `last_update_at`, timestamps.
-- **`agent_updates`** — `id uuid PK`, `agent_id uuid FK → agents(id) ON DELETE CASCADE`, `update_date date default CURRENT_DATE`, `status`, `progress smallint CHECK 0-100`, `status_description`, `source varchar(50) default 'manual'`, `created_at`. Unique index on `(agent_id, update_date)` enables the one-record-per-agent-per-day upsert; covering index `(agent_id, update_date DESC)` for history queries.
+- **`agents`** — `id STRING PK` (app-generated `crypto.randomUUID()` — Delta has no `gen_random_uuid()` default), `name`, `description`, `assigned_to`, `eta DATE`, `current_status` (`STRING` + `CHECK` constraint: `Not Started | In Progress | Blocked | Completed | On Hold` — no native enum type in Delta), `current_progress SMALLINT CHECK 0-100`, `current_status_description`, `last_update_at`, `sort_order`, timestamps.
+- **`agent_updates`** — `id STRING PK`, `agent_id STRING` (FK to `agents.id`, declared `NOT ENFORCED` — Delta doesn't enforce FKs), `update_date DATE`, `status`, `progress SMALLINT CHECK 0-100`, `status_description`, `source STRING default 'manual'`, `created_at`. No unique index equivalent exists in Delta, so "one row per (agent_id, update_date)" is enforced by application code via `MERGE INTO` in `updates.service.js: recordUpdate`, not a DB constraint.
 
-The `agents.current_*` columns are a **denormalized cache** of the latest `agent_updates` row, refreshed transactionally on every update (`updates.service.js: recordUpdate`).
+The `agents.current_*` columns are a **denormalized cache** of the latest `agent_updates` row, refreshed by `recordUpdate` as a second, separate statement — not atomically, since Delta has no cross-table transactions (see `ARCHITECTURE.md §3`).
 
 **API routes** (all under `/api`):
 - `GET /api/health`
@@ -113,18 +115,26 @@ The `agents.current_*` columns are a **denormalized cache** of the latest `agent
 - `POST /api/agents`, `PATCH /api/agents/:id`, `DELETE /api/agents/:id`
 - `GET /api/updates/today`, `GET /api/updates/history`
 - `POST /api/updates` (single-agent upsert), `POST /api/updates/batch` (daily-sheet bulk submit)
+- `GET/POST /api/finops/usage`, `GET /api/finops/usage/summary`, `GET/POST /api/finops/pricing`, `GET/POST /api/finops/thresholds`, `GET/PATCH /api/finops/alerts`
+- `GET /api/insights/portfolio`, `GET /api/insights/by-agent`, plus per-agent insights under `/api/agents/:id/insights`
 
-**External integrations**: none currently — no third-party APIs, cloud SDKs, auth providers, or webhooks. The `source` column on `agent_updates` (always `'manual'` today) is explicitly designed as the extension point for future automated ingestion — a future webhook could call the same `recordUpdate(trx, {...})` with `source: 'automated'`, no schema change needed.
+**External integrations**: the Anthropic API (optional, for AI narrative generation) is the only outbound third-party call; no auth providers or webhooks. The `source` column on `agent_updates` (always `'manual'` today) is still the intended extension point for future automated ingestion — a future webhook could call the same `recordUpdate({...})` with `source: 'automated'`, no schema change needed.
 
-**Backup/restore**: `scripts/backup-db.js` / `restore-db.js` shell out to `docker compose exec postgres pg_dump`/`psql`.
+**Postgres cutover**: the app ran on Postgres/Knex until this migration. `backend/src/db/copy-postgres-to-databricks.js` copies from a **live** Postgres (`DATABASE_URL`); `backend/src/db/load-backup-to-databricks.js` instead parses a `scripts/backup-db.js` dump file directly (no live Postgres/Docker needed) — that's what was used for the actual cutover. Both are one-time scripts, safe to re-run (each clears its target table before reloading). `scripts/backup-db.js` / `restore-db.js` still shell out to `docker compose exec postgres pg_dump`/`psql` against the now-legacy Postgres container, kept around only as a rollback/reference copy.
 
 ## 6. Environment / Config
 
 `backend/.env.example`:
 ```
 PORT=4000
-DATABASE_URL=postgres://postgres:postgres@localhost:5432/agent_dashboard
 CORS_ORIGIN=http://localhost:5174
+ANTHROPIC_API_KEY=
+DATABRICKS_HOST=
+DATABRICKS_TOKEN=
+DATABRICKS_HTTP_PATH=
+DATABRICKS_CATALOG=
+DATABRICKS_SCHEMA=
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/agent_dashboard   # legacy, see §5
 ```
 
 `frontend/.env.example`:
@@ -135,16 +145,15 @@ In dev, Vite proxies `/api` → `http://localhost:4000`, so the frontend never n
 
 > Minor gotcha: `backend/src/config/env.js`'s default fallback for `corsOrigin` is `http://localhost:5173`, but the `.env.example` and Vite's actual dev port are `5174` — worth knowing if you hit a CORS error locally.
 
-No real secrets are involved — only default local Postgres credentials for the Docker Compose instance.
+`DATABRICKS_TOKEN` is a real per-user personal access token — treat `.env` as a secret, not just local Postgres creds like before. Databricks personal access tokens can be scope-restricted by workspace policy; a token missing the `sql` scope fails with an HTTP 403 whose body says `"does not have required scopes: sql"` — regenerate the token with full/standard scope (or ask a workspace admin) if you hit that.
 
 ## 7. Scripts
 
 **Root**:
 - `npm run dev` — backend + frontend concurrently (color-coded)
-- `npm run migrate` / `npm run seed`
-- `npm run db:backup` / `npm run db:restore`
+- `npm run db:backup` / `npm run db:restore` — legacy Postgres dumps only
 
-**Backend**: `dev` (nodemon), `start`, `migrate`, `migrate:rollback`, `seed`
+**Backend**: `dev` (nodemon), `start`, `migrate:databricks`, `seed:databricks`, `copy:postgres-to-databricks`
 
 **Frontend**: `dev` (vite), `build`, `lint` (oxlint), `preview`
 
@@ -153,7 +162,7 @@ No real secrets are involved — only default local Postgres credentials for the
 - **No TypeScript** anywhere — plain JS/JSX, no `tsconfig.json`.
 - Frontend uses **oxlint**, not ESLint/Prettier; backend has **no linter** configured.
 - **Zod** is the single source of truth for the status enum on the backend (`agent.schema.js`); it's manually mirrored in `frontend/src/constants.js` since there's no shared types package between the two workspaces.
-- Centralized `errorHandler.js` maps Postgres error codes to structured `{ error: { message, code } }` responses (23505 → 409 conflict, 23503 → 400 FK violation, 23514/22P02 → 400 check/invalid input).
+- `middleware/errorHandler.js` maps small set of app-defined error codes (e.g. `FK_VIOLATION`, thrown by services when a referenced row doesn't exist) to HTTP status, since Delta has no enforced FKs/uniqueness and no Postgres-style SQLSTATE codes to key off of anymore.
 - No code generation (no OpenAPI/GraphQL/Prisma).
 
 ## 9. Extensibility — Where To Plug In
