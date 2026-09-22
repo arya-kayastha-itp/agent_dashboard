@@ -1,15 +1,23 @@
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
-import Divider from '@mui/material/Divider';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableContainer from '@mui/material/TableContainer';
+import TableHead from '@mui/material/TableHead';
+import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
 import { DndContext, PointerSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
+import { AGENT_QUEUE_COLUMN_COUNT } from '../components/AgentQueueRow';
 import SortableAgentRow from '../components/SortableAgentRow';
 import DashboardSummaryBanner from '../components/DashboardSummaryBanner';
 import ErrorAlert from '../components/ErrorAlert';
@@ -29,6 +37,7 @@ export default function AgentManagerHomePage() {
   const { data: todayRows } = useTodayUpdates();
   const { data: insightsSummary } = useAgentsInsightsSummary();
   const [healthFilter, setHealthFilter] = useState(null);
+  const [showCaughtUp, setShowCaughtUp] = useState(false);
   const reorderAgents = useReorderAgents();
 
   const summary = useMemo(() => summarizeAgents(agents || []), [agents]);
@@ -72,7 +81,7 @@ export default function AgentManagerHomePage() {
 
   return (
     <Box>
-      <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2} sx={{ mb: 3 }}>
+      <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2} sx={{ mb: 2 }}>
         <Box>
           <Typography variant="h4">Home</Typography>
           <Typography color="text.secondary" sx={{ mt: 0.5 }}>
@@ -111,42 +120,78 @@ export default function AgentManagerHomePage() {
         <>
           <DashboardSummaryBanner summary={summary} activeFilter={healthFilter} onFilterChange={setHealthFilter} />
 
-          <Paper variant="outlined">
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-              {groups.map((group, groupIdx) => (
-                <SortableContext
-                  key={groupIdx}
-                  items={group.agents.map((a) => a.id)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  {group.agents.map((agent, idx) => {
-                    const sectionLabel =
-                      !healthFilter && idx === 0
-                        ? group.isFlagged
-                          ? `Needs attention today (${flaggedCount})`
-                          : 'All caught up'
-                        : null;
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 'calc(100vh - 300px)' }}>
+              <Table size="small" stickyHeader>
+                <TableHead>
+                  <TableRow>
+                    <TableCell sx={{ width: 40 }} />
+                    <TableCell sx={{ width: 32 }} />
+                    <TableCell>Agent</TableCell>
+                    <TableCell>Status</TableCell>
+                    <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Assignee</TableCell>
+                    <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>This month</TableCell>
+                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' }, width: 160 }}>Progress</TableCell>
+                    <TableCell align="right" />
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {groups.map((group, groupIdx) => {
+                    // The caught-up bucket is collapsed by default so a growing
+                    // pile of on-track/not-started agents can't push the list
+                    // that actually needs a decision further down the page.
+                    const isCollapsibleCaughtUp = !group.isFlagged && !healthFilter;
+
+                    if (isCollapsibleCaughtUp) {
+                      return (
+                        <Fragment key={groupIdx}>
+                          <TableRow>
+                            <TableCell colSpan={AGENT_QUEUE_COLUMN_COUNT} sx={{ py: 0.5 }}>
+                              <Button
+                                size="small"
+                                color="inherit"
+                                onClick={() => setShowCaughtUp((s) => !s)}
+                                startIcon={showCaughtUp ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                                sx={{ color: 'text.secondary', fontWeight: 400 }}
+                              >
+                                All caught up ({group.agents.length})
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                          {showCaughtUp && (
+                            <SortableContext items={group.agents.map((a) => a.id)} strategy={verticalListSortingStrategy}>
+                              {group.agents.map((agent) => (
+                                <SortableAgentRow key={agent.id} agent={agent} insight={insightsSummary?.byAgent?.[agent.id]} />
+                              ))}
+                            </SortableContext>
+                          )}
+                        </Fragment>
+                      );
+                    }
 
                     return (
-                      <Box key={agent.id}>
-                        {sectionLabel && (
-                          <Typography
-                            variant="overline"
-                            color="text.secondary"
-                            sx={{ display: 'block', px: { xs: 2, sm: 3 }, pt: 2, pb: 0.5 }}
-                          >
-                            {sectionLabel}
-                          </Typography>
+                      <Fragment key={groupIdx}>
+                        {!healthFilter && (
+                          <TableRow>
+                            <TableCell colSpan={AGENT_QUEUE_COLUMN_COUNT} sx={{ py: 0.5 }}>
+                              <Typography variant="overline" color="text.secondary">
+                                Needs attention today ({flaggedCount})
+                              </Typography>
+                            </TableCell>
+                          </TableRow>
                         )}
-                        {(groupIdx > 0 || idx > 0) && !sectionLabel && <Divider />}
-                        <SortableAgentRow agent={agent} insight={insightsSummary?.byAgent?.[agent.id]} />
-                      </Box>
+                        <SortableContext items={group.agents.map((a) => a.id)} strategy={verticalListSortingStrategy}>
+                          {group.agents.map((agent) => (
+                            <SortableAgentRow key={agent.id} agent={agent} insight={insightsSummary?.byAgent?.[agent.id]} />
+                          ))}
+                        </SortableContext>
+                      </Fragment>
                     );
                   })}
-                </SortableContext>
-              ))}
-            </DndContext>
-          </Paper>
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </DndContext>
         </>
       )}
     </Box>

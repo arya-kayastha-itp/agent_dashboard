@@ -30,7 +30,7 @@ export default function AllAgentsPage() {
 
   return (
     <Box>
-      <Typography variant="h4" sx={{ mb: 3 }}>
+      <Typography variant="h4" sx={{ mb: 2 }}>
         All Agents
       </Typography>
 

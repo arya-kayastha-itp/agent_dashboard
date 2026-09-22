@@ -4,8 +4,8 @@ import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import Card from '@mui/material/Card';
 import CircularProgress from '@mui/material/CircularProgress';
-import Divider from '@mui/material/Divider';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
@@ -13,17 +13,15 @@ import { format } from 'date-fns';
 import { formatCurrency, formatPercent } from '../formatters';
 import { usePortfolioInsights } from '../hooks/useInsights';
 
-function TrendDelta({ label, pct }) {
+// Signed delta vs. the prior period, direction-colored: up reads as error
+// (more cost, more errors, more load) and down as success — same convention
+// for all three stats, matching DashboardSummaryBanner's use of color.
+function TrendDelta({ pct }) {
   if (pct === null || pct === undefined) {
     return (
-      <Box>
-        <Typography variant="caption" color="text.secondary">
-          {label}
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Not enough data yet
-        </Typography>
-      </Box>
+      <Typography variant="caption" color="text.secondary">
+        Not enough data yet
+      </Typography>
     );
   }
 
@@ -31,17 +29,28 @@ function TrendDelta({ label, pct }) {
   const color = pct > 0 ? 'error.main' : pct < 0 ? 'success.main' : 'text.secondary';
 
   return (
-    <Box>
-      <Typography variant="caption" color="text.secondary">
-        {label}
+    <Stack direction="row" spacing={0.25} alignItems="center">
+      <Icon fontSize="inherit" sx={{ color }} />
+      <Typography variant="caption" sx={{ color }}>
+        {pct === 0 ? 'Flat' : `${Math.abs(pct)}%`} vs last month
       </Typography>
-      <Stack direction="row" spacing={0.25} alignItems="center">
-        <Icon fontSize="inherit" sx={{ color }} />
-        <Typography variant="body2" sx={{ color }}>
-          {pct === 0 ? 'Flat' : `${Math.abs(pct)}%`}
+    </Stack>
+  );
+}
+
+function StatTile({ label, value, delta }) {
+  return (
+    <Card variant="outlined">
+      <Box sx={{ px: 2, py: 1.5 }}>
+        <Typography variant="caption" color="text.secondary" noWrap>
+          {label}
         </Typography>
-      </Stack>
-    </Box>
+        <Typography variant="h6" sx={{ lineHeight: 1.15, mb: 0.5 }}>
+          {value}
+        </Typography>
+        {delta}
+      </Box>
+    </Card>
   );
 }
 
@@ -53,14 +62,9 @@ export default function PortfolioInsightsPanel() {
 
   return (
     <Paper variant="outlined" sx={{ p: 3, mb: 3 }}>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
-        <Typography variant="h6">Portfolio Insights</Typography>
-        {insights && (
-          <Typography variant="caption" color="text.secondary">
-            {insights.agentCount} agent{insights.agentCount === 1 ? '' : 's'} · last {insights.windowDays} days
-          </Typography>
-        )}
-      </Stack>
+      <Typography variant="h6" sx={{ mb: 2 }}>
+        Portfolio Insights
+      </Typography>
 
       {isLoading && (
         <Stack direction="row" spacing={1.5} alignItems="center">
@@ -76,67 +80,46 @@ export default function PortfolioInsightsPanel() {
 
       {insights && (
         <>
-          <Stack direction="row" spacing={4} flexWrap="wrap" useFlexGap sx={{ mb: 2 }}>
-            <Box>
-              <Typography variant="caption" color="text.secondary">
-                No. of calls
-              </Typography>
-              <Typography variant="h6">{insights.stats.calls}</Typography>
-            </Box>
-            <Box>
-              <Typography variant="caption" color="text.secondary">
-                Total cost
-              </Typography>
-              <Typography variant="h6">{formatCurrency(insights.stats.cost)}</Typography>
-            </Box>
-            <Box>
-              <Typography variant="caption" color="text.secondary">
-                Error rate
-              </Typography>
-              <Typography variant="h6">{formatPercent(insights.stats.errorRate)}</Typography>
-            </Box>
-          </Stack>
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, minmax(150px, 1fr))',
+              gap: 1.5,
+              mb: insights.stats.calls === 0 || insights.anomalies.length > 0 ? 2 : 0,
+            }}
+          >
+            <StatTile
+              label="No. of calls"
+              value={insights.stats.calls}
+              delta={insights.stats.calls > 0 && <TrendDelta pct={insights.trend.deltas.callsPct} />}
+            />
+            <StatTile
+              label="Total cost"
+              value={formatCurrency(insights.stats.cost)}
+              delta={insights.stats.calls > 0 && <TrendDelta pct={insights.trend.deltas.costPct} />}
+            />
+            <StatTile
+              label="Error rate"
+              value={formatPercent(insights.stats.errorRate)}
+              delta={insights.stats.calls > 0 && <TrendDelta pct={insights.trend.deltas.errorRatePct} />}
+            />
+          </Box>
 
-          {insights.stats.calls === 0 ? (
-            <Alert severity="info" sx={{ mb: 2 }}>
-              No usage logged yet across any agent.
-            </Alert>
-          ) : (
-            <>
-              <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                This month vs. last month
-              </Typography>
-              <Stack direction="row" spacing={4} flexWrap="wrap" useFlexGap sx={{ mb: 2 }}>
-                <TrendDelta label="Calls" pct={insights.trend.deltas.callsPct} />
-                <TrendDelta label="Cost" pct={insights.trend.deltas.costPct} />
-                <TrendDelta label="Error rate" pct={insights.trend.deltas.errorRatePct} />
-              </Stack>
-
-              {insights.anomalies.length > 0 && (
-                <Stack spacing={1} sx={{ mb: 2 }}>
-                  {insights.anomalies.map((a) => (
-                    <Alert key={`${a.day}-${a.metric}`} severity="warning">
-                      {a.metric === 'cost'
-                        ? `Cost spiked to ${formatCurrency(a.value)} on ${format(new Date(a.day), 'PP')} — well above the recent average of ${formatCurrency(a.baselineMean)}.`
-                        : `Error rate spiked to ${formatPercent(a.value)} on ${format(new Date(a.day), 'PP')} — well above the recent average of ${formatPercent(a.baselineMean)}.`}
-                    </Alert>
-                  ))}
-                </Stack>
-              )}
-            </>
+          {insights.stats.calls === 0 && (
+            <Alert severity="info">No usage logged yet across any agent.</Alert>
           )}
 
-          <Divider sx={{ my: 2 }} />
-
-          <Typography variant="subtitle2" sx={{ mb: 1 }}>
-            Summary
-          </Typography>
-          <Typography variant="body2" sx={{ mb: 1 }}>
-            {insights.narrative.text}
-          </Typography>
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-            Computed summary
-          </Typography>
+          {insights.anomalies.length > 0 && (
+            <Stack spacing={1}>
+              {insights.anomalies.map((a) => (
+                <Alert key={`${a.day}-${a.metric}`} severity="warning">
+                  {a.metric === 'cost'
+                    ? `Cost spiked to ${formatCurrency(a.value)} on ${format(new Date(a.day), 'PP')} — well above the recent average of ${formatCurrency(a.baselineMean)}.`
+                    : `Error rate spiked to ${formatPercent(a.value)} on ${format(new Date(a.day), 'PP')} — well above the recent average of ${formatPercent(a.baselineMean)}.`}
+                </Alert>
+              ))}
+            </Stack>
+          )}
         </>
       )}
     </Paper>

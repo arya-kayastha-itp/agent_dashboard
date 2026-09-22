@@ -6,7 +6,9 @@ import AgentQueueRow from './AgentQueueRow';
 
 // Wraps an AgentQueueRow as a dnd-kit sortable item. Dragging is confined to
 // the grip handle so it doesn't fight the row's own click targets (name
-// link, "Update" toggle, inline form controls).
+// link, "Update" toggle, inline form controls). The row itself is a <tr>,
+// so the sortable ref/style go directly onto it rather than onto a wrapper
+// element — a <div> around a <tr> would get hoisted out of the table.
 export default function SortableAgentRow({ agent, insight }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: agent.id });
 
@@ -19,22 +21,22 @@ export default function SortableAgentRow({ agent, insight }) {
   };
 
   return (
-    <div ref={setNodeRef} style={style}>
-      <AgentQueueRow
-        agent={agent}
-        insight={insight}
-        dragHandle={
-          <IconButton
-            size="small"
-            {...attributes}
-            {...listeners}
-            aria-label="Drag to reorder"
-            sx={{ cursor: 'grab', touchAction: 'none', color: 'text.disabled' }}
-          >
-            <DragIndicatorIcon fontSize="small" />
-          </IconButton>
-        }
-      />
-    </div>
+    <AgentQueueRow
+      agent={agent}
+      insight={insight}
+      rowRef={setNodeRef}
+      rowStyle={style}
+      dragHandle={
+        <IconButton
+          size="small"
+          {...attributes}
+          {...listeners}
+          aria-label="Drag to reorder"
+          sx={{ cursor: 'grab', touchAction: 'none', color: 'text.disabled' }}
+        >
+          <DragIndicatorIcon fontSize="small" />
+        </IconButton>
+      }
+    />
   );
 }

@@ -9,7 +9,7 @@ import { PERSONA_VALUES } from '../constants';
 import { usePageTitle } from '../hooks/usePageTitle';
 import { PERSONA_DESCRIPTIONS, PERSONA_LABELS } from '../labels';
 import { usePersona } from '../persona/PersonaContext';
-import IntuitiveLogo from '../components/IntuitiveLogo';
+import AiGarageLogo from '../components/AiGarageLogo';
 
 export default function PersonaLoginPage() {
   usePageTitle('Choose persona');
@@ -26,7 +26,7 @@ export default function PersonaLoginPage() {
   return (
     <Container maxWidth="sm" sx={{ py: 8 }}>
       <Box sx={{ display: 'flex', justifyContent: 'center', mb: 1 }}>
-        <IntuitiveLogo size={42} />
+        <AiGarageLogo size={56} />
       </Box>
       <Typography variant="body1" color="text.secondary" textAlign="center" sx={{ mb: 4 }}>
         Choose your persona to continue

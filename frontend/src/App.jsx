@@ -18,7 +18,7 @@ import { useState } from 'react';
 import { Link, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import AddAgentModal from './components/AddAgentModal';
 import AlertBell from './components/AlertBell';
-import IntuitiveLogo from './components/IntuitiveLogo';
+import AiGarageLogo from './components/AiGarageLogo';
 import { PERSONA_LABELS } from './labels';
 import AgentDetailPage from './pages/AgentDetailPage';
 import AllAgentsPage from './pages/AllAgentsPage';
@@ -102,7 +102,7 @@ export default function App() {
               <AppBar position="static" color="default" elevation={0} sx={{ borderBottom: 1, borderColor: 'divider' }}>
                 <Toolbar>
                   <Box component={Link} to="/" sx={{ display: 'flex', flexGrow: 1, textDecoration: 'none', color: 'inherit' }}>
-                    <IntuitiveLogo />
+                    <AiGarageLogo />
                   </Box>
                   <Stack direction="row" spacing={1} alignItems="center">
                     {isNarrow ? (
@@ -167,7 +167,7 @@ export default function App() {
                 </Toolbar>
               </AppBar>
 
-              <Container sx={{ py: 4 }}>
+              <Container sx={{ py: 2.5 }}>
                 <Routes>
                   <Route path="/" element={<HomePage />} />
                   <Route path="/agents" element={<AllAgentsPage />} />
