@@ -4,8 +4,6 @@ export const PERSONAS = {
   FINOPS: 'FINOPS',
 };
 
-export const PERSONA_VALUES = Object.values(PERSONAS);
-
 export const STATUS_VALUES = ['Not Started', 'In Progress', 'Blocked', 'Completed', 'On Hold'];
 
 export const STATUS_COLORS = {

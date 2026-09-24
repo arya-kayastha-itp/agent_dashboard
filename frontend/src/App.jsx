@@ -1,5 +1,7 @@
 import AddIcon from '@mui/icons-material/Add';
+import DarkModeIcon from '@mui/icons-material/DarkMode';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import LightModeIcon from '@mui/icons-material/LightMode';
 import MenuIcon from '@mui/icons-material/Menu';
 import AppBar from '@mui/material/AppBar';
 import Box from '@mui/material/Box';
@@ -11,6 +13,7 @@ import IconButton from '@mui/material/IconButton';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
+import Tooltip from '@mui/material/Tooltip';
 import { useTheme } from '@mui/material/styles';
 import Toolbar from '@mui/material/Toolbar';
 import useMediaQuery from '@mui/material/useMediaQuery';
@@ -25,6 +28,7 @@ import AllAgentsPage from './pages/AllAgentsPage';
 import DailyUpdateSheetPage from './pages/DailyUpdateSheetPage';
 import HomePage from './pages/HomePage';
 import PersonaLoginPage from './pages/PersonaLoginPage';
+import PortfolioInsightsPage from './pages/PortfolioInsightsPage';
 import PricingAdminPage from './pages/PricingAdminPage';
 import ThresholdsAdminPage from './pages/ThresholdsAdminPage';
 import { NAV_ITEMS, SHOW_ALERT_BELL, navItemFor } from './persona/navConfig';
@@ -74,7 +78,7 @@ function ConfigureMenu({ items }) {
   );
 }
 
-export default function App() {
+export default function App({ onToggleTheme, themeMode }) {
   const [addAgentOpen, setAddAgentOpen] = useState(false);
   const [navMenuAnchor, setNavMenuAnchor] = useState(null);
   const { persona, clearPersona } = usePersona();
@@ -157,6 +161,20 @@ export default function App() {
                       </>
                     )}
                     {SHOW_ALERT_BELL.includes(persona) && <AlertBell />}
+                    <Tooltip title={themeMode === 'light' ? 'Dark mode' : 'Light mode'}>
+                      <IconButton
+                        onClick={onToggleTheme}
+                        size="small"
+                        sx={{
+                          color: 'inherit',
+                          '&:hover': {
+                            backgroundColor: theme.palette.mode === 'light' ? 'rgba(0, 0, 0, 0.04)' : 'rgba(255, 255, 255, 0.1)',
+                          },
+                        }}
+                      >
+                        {themeMode === 'light' ? <DarkModeIcon /> : <LightModeIcon />}
+                      </IconButton>
+                    </Tooltip>
                     <Chip
                       label={isNarrow ? PERSONA_LABELS[persona] : `${PERSONA_LABELS[persona]} · Switch`}
                       onClick={handleSwitchPersona}
@@ -171,6 +189,7 @@ export default function App() {
                 <Routes>
                   <Route path="/" element={<HomePage />} />
                   <Route path="/agents" element={<AllAgentsPage />} />
+                  <Route path="/insights" element={restricted('/insights', <PortfolioInsightsPage />)} />
                   <Route path="/daily-sheet" element={restricted('/daily-sheet', <DailyUpdateSheetPage />)} />
                   <Route path="/agents/:id" element={<AgentDetailPage />} />
                   <Route path="/finops/pricing" element={restricted('/finops/pricing', <PricingAdminPage />)} />

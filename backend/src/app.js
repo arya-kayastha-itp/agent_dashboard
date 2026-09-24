@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const env = require('./config/env');
+const authRoutes = require('./routes/auth.routes');
 const agentsRoutes = require('./routes/agents.routes');
 const updatesRoutes = require('./routes/updates.routes');
 const finopsRoutes = require('./routes/finops.routes');
@@ -14,6 +15,7 @@ app.use(express.json());
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
+app.use('/api/auth', authRoutes);
 app.use('/api/agents', agentsRoutes);
 app.use('/api/updates', updatesRoutes);
 app.use('/api/finops', finopsRoutes);

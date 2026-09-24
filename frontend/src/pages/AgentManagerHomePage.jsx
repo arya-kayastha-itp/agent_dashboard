@@ -1,5 +1,3 @@
-import ExpandLessIcon from '@mui/icons-material/ExpandLess';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -15,13 +13,13 @@ import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
 import { DndContext, PointerSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { Fragment, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import { AGENT_QUEUE_COLUMN_COUNT } from '../components/AgentQueueRow';
 import SortableAgentRow from '../components/SortableAgentRow';
 import DashboardSummaryBanner from '../components/DashboardSummaryBanner';
 import ErrorAlert from '../components/ErrorAlert';
-import { FLAGGED_HEALTH_LEVELS, computeAgentHealth, sortBySeverity, summarizeAgents } from '../agentHealth';
+import { computeAgentHealth, sortBySeverity, summarizeAgents } from '../agentHealth';
 import { useAgents, useReorderAgents } from '../hooks/useAgents';
 import { useTodayUpdates } from '../hooks/useDailySheet';
 import { useAgentsInsightsSummary } from '../hooks/useInsights';
@@ -37,7 +35,6 @@ export default function AgentManagerHomePage() {
   const { data: todayRows } = useTodayUpdates();
   const { data: insightsSummary } = useAgentsInsightsSummary();
   const [healthFilter, setHealthFilter] = useState(null);
-  const [showCaughtUp, setShowCaughtUp] = useState(false);
   const reorderAgents = useReorderAgents();
 
   const summary = useMemo(() => summarizeAgents(agents || []), [agents]);
@@ -47,31 +44,13 @@ export default function AgentManagerHomePage() {
     return sorted.filter((agent) => computeAgentHealth(agent).level === healthFilter);
   }, [sorted, healthFilter]);
 
-  // Consecutive runs of the same flagged/not-flagged state — at most two
-  // ("Needs attention today" then "All caught up"), since severity is
-  // always the primary sort. Each run is its own drag-and-drop group so
-  // reordering can't cross into the other severity band.
-  const groups = useMemo(() => {
-    const out = [];
-    visible.forEach((agent) => {
-      const isFlagged = FLAGGED_HEALTH_LEVELS.includes(computeAgentHealth(agent).level);
-      const last = out[out.length - 1];
-      if (last && last.isFlagged === isFlagged) {
-        last.agents.push(agent);
-      } else {
-        out.push({ isFlagged, agents: [agent] });
-      }
-    });
-    return out;
-  }, [visible]);
+  const sortedAgents = useMemo(() => visible, [visible]);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   const handleDragEnd = ({ active, over }) => {
     if (!over || active.id === over.id) return;
-    const group = groups.find((g) => g.agents.some((a) => a.id === active.id));
-    if (!group) return;
-    const ids = group.agents.map((a) => a.id);
+    const ids = sortedAgents.map((a) => a.id);
     if (!ids.includes(over.id)) return;
     reorderAgents.mutate(arrayMove(ids, ids.indexOf(active.id), ids.indexOf(over.id)));
   };
@@ -136,58 +115,11 @@ export default function AgentManagerHomePage() {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {groups.map((group, groupIdx) => {
-                    // The caught-up bucket is collapsed by default so a growing
-                    // pile of on-track/not-started agents can't push the list
-                    // that actually needs a decision further down the page.
-                    const isCollapsibleCaughtUp = !group.isFlagged && !healthFilter;
-
-                    if (isCollapsibleCaughtUp) {
-                      return (
-                        <Fragment key={groupIdx}>
-                          <TableRow>
-                            <TableCell colSpan={AGENT_QUEUE_COLUMN_COUNT} sx={{ py: 0.5 }}>
-                              <Button
-                                size="small"
-                                color="inherit"
-                                onClick={() => setShowCaughtUp((s) => !s)}
-                                startIcon={showCaughtUp ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                                sx={{ color: 'text.secondary', fontWeight: 400 }}
-                              >
-                                All caught up ({group.agents.length})
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                          {showCaughtUp && (
-                            <SortableContext items={group.agents.map((a) => a.id)} strategy={verticalListSortingStrategy}>
-                              {group.agents.map((agent) => (
-                                <SortableAgentRow key={agent.id} agent={agent} insight={insightsSummary?.byAgent?.[agent.id]} />
-                              ))}
-                            </SortableContext>
-                          )}
-                        </Fragment>
-                      );
-                    }
-
-                    return (
-                      <Fragment key={groupIdx}>
-                        {!healthFilter && (
-                          <TableRow>
-                            <TableCell colSpan={AGENT_QUEUE_COLUMN_COUNT} sx={{ py: 0.5 }}>
-                              <Typography variant="overline" color="text.secondary">
-                                Needs attention today ({flaggedCount})
-                              </Typography>
-                            </TableCell>
-                          </TableRow>
-                        )}
-                        <SortableContext items={group.agents.map((a) => a.id)} strategy={verticalListSortingStrategy}>
-                          {group.agents.map((agent) => (
-                            <SortableAgentRow key={agent.id} agent={agent} insight={insightsSummary?.byAgent?.[agent.id]} />
-                          ))}
-                        </SortableContext>
-                      </Fragment>
-                    );
-                  })}
+                  <SortableContext items={sortedAgents.map((a) => a.id)} strategy={verticalListSortingStrategy}>
+                    {sortedAgents.map((agent) => (
+                      <SortableAgentRow key={agent.id} agent={agent} insight={insightsSummary?.byAgent?.[agent.id]} />
+                    ))}
+                  </SortableContext>
                 </TableBody>
               </Table>
             </TableContainer>

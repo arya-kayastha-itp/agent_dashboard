@@ -1,12 +1,19 @@
 import { createTheme } from '@mui/material/styles';
 
-const theme = createTheme({
+const getTheme = (mode) => createTheme({
   palette: {
+    mode,
     primary: { main: '#0D9488' },
     secondary: { main: '#0F172A' },
-    background: { default: '#F8FAFC', paper: '#FFFFFF' },
-    text: { primary: '#0F172A', secondary: '#64748B' },
-    divider: '#E2E8F0',
+    background: {
+      default: mode === 'light' ? '#F8FAFC' : '#0F172A',
+      paper: mode === 'light' ? '#FFFFFF' : '#1E293B',
+    },
+    text: {
+      primary: mode === 'light' ? '#0F172A' : '#F1F5F9',
+      secondary: mode === 'light' ? '#64748B' : '#94A3B8',
+    },
+    divider: mode === 'light' ? '#E2E8F0' : '#334155',
   },
   shape: {
     borderRadius: 12,
@@ -26,6 +33,7 @@ const theme = createTheme({
           borderRadius: 16,
           boxShadow: 'none',
           transition: 'box-shadow 0.15s ease, border-color 0.15s ease',
+          backgroundColor: mode === 'light' ? '#FFFFFF' : '#1E293B',
         },
       },
     },
@@ -33,7 +41,7 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           '&:hover': {
-            backgroundColor: 'rgba(79, 70, 229, 0.03)',
+            backgroundColor: mode === 'light' ? 'rgba(79, 70, 229, 0.03)' : 'rgba(79, 70, 229, 0.1)',
           },
         },
       },
@@ -41,7 +49,7 @@ const theme = createTheme({
     MuiPaper: {
       styleOverrides: {
         outlined: {
-          borderColor: '#E2E8F0',
+          borderColor: mode === 'light' ? '#E2E8F0' : '#334155',
         },
       },
     },
@@ -62,11 +70,19 @@ const theme = createTheme({
     MuiAppBar: {
       styleOverrides: {
         root: {
-          backgroundColor: '#FFFFFF',
+          backgroundColor: mode === 'light' ? '#FFFFFF' : '#1E293B',
+          color: mode === 'light' ? '#0F172A' : '#F1F5F9',
+        },
+      },
+    },
+    MuiDialog: {
+      styleOverrides: {
+        paper: {
+          backgroundColor: mode === 'light' ? '#FFFFFF' : '#1E293B',
         },
       },
     },
   },
 });
 
-export default theme;
+export default getTheme;

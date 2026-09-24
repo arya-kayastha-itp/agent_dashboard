@@ -19,9 +19,3 @@ export const PERSONA_LABELS = {
   AGENT_MANAGER: 'Agent Manager',
   FINOPS: 'FinOps',
 };
-
-export const PERSONA_DESCRIPTIONS = {
-  EXECUTIVE: 'View-only access to the dashboard and agent insights.',
-  AGENT_MANAGER: 'Manage agents and log daily progress updates.',
-  FINOPS: 'Track cost, reliability, pricing, and alert rules.',
-};

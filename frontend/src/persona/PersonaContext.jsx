@@ -1,38 +1,56 @@
 import { createContext, useContext, useMemo, useState } from 'react';
 
-const STORAGE_KEY = 'agent-dashboard.persona';
+const PERSONA_KEY = 'agent-dashboard.persona';
+const TOKEN_KEY = 'agent-dashboard.token';
 
 const PersonaContext = createContext(null);
 
-function readStoredPersona() {
+function readStored(key) {
   try {
-    return localStorage.getItem(STORAGE_KEY);
+    return localStorage.getItem(key);
   } catch {
     return null;
   }
 }
 
+function writeStored(key, value) {
+  try {
+    if (value) localStorage.setItem(key, value);
+    else localStorage.removeItem(key);
+  } catch {
+    // localStorage unavailable — session still works for this page load
+  }
+}
+
+// Plain (non-hook) accessors so api/client.js can attach the token to
+// requests, and clear the session on a 401, without needing to be inside a
+// component.
+export function getStoredToken() {
+  return readStored(TOKEN_KEY);
+}
+
+export function clearStoredSession() {
+  writeStored(PERSONA_KEY, null);
+  writeStored(TOKEN_KEY, null);
+}
+
 export function PersonaProvider({ children }) {
-  const [persona, setPersonaState] = useState(readStoredPersona);
+  const [persona, setPersonaState] = useState(() => readStored(PERSONA_KEY));
 
   const value = useMemo(
     () => ({
       persona,
       isAuthenticated: persona != null,
-      setPersona: (next) => {
-        try {
-          localStorage.setItem(STORAGE_KEY, next);
-        } catch {
-          // localStorage unavailable — persona still works for this session
-        }
-        setPersonaState(next);
+      // Called after a successful POST /api/auth/login — persona and token
+      // arrive together, since the token is what a login actually proves.
+      setSession: (nextPersona, token) => {
+        writeStored(PERSONA_KEY, nextPersona);
+        writeStored(TOKEN_KEY, token);
+        setPersonaState(nextPersona);
       },
       clearPersona: () => {
-        try {
-          localStorage.removeItem(STORAGE_KEY);
-        } catch {
-          // ignore
-        }
+        writeStored(PERSONA_KEY, null);
+        writeStored(TOKEN_KEY, null);
         setPersonaState(null);
       },
     }),
