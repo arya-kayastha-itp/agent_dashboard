@@ -18,6 +18,7 @@ import ErrorAlert from '../components/ErrorAlert';
 import HistoryChart from '../components/HistoryChart';
 import InfoTooltip from '../components/InfoTooltip';
 import InsightsPanel from '../components/InsightsPanel';
+import MarketplaceTag from '../components/MarketplaceTag';
 import ProgressBar from '../components/ProgressBar';
 import StatusBadge from '../components/StatusBadge';
 import { formatAssignees } from '../formatters';
@@ -59,6 +60,7 @@ export default function AgentDetailPage() {
           <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
             <Box>
               <Typography variant="h4">{agent.name}</Typography>
+              <MarketplaceTag agent={agent} sx={{ display: 'flex', width: 'fit-content', mt: 0.75 }} />
               {agent.description && (
                 <Typography variant="body1" color="text.secondary" sx={{ mt: 1 }}>
                   {agent.description}

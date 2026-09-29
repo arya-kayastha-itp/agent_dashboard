@@ -13,6 +13,7 @@ import { FIELD_LABELS } from '../labels';
 import { usePersona } from '../persona/PersonaContext';
 import { canDeleteAgent } from '../persona/permissions';
 import DeleteAgentButton from './DeleteAgentButton';
+import MarketplaceTag from './MarketplaceTag';
 import ProgressBar from './ProgressBar';
 import StatusBadge from './StatusBadge';
 
@@ -38,19 +39,22 @@ export default function AgentCard({ agent }) {
       >
         <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', p: 1.5, '&:last-child': { pb: 1.5 } }}>
           <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1} sx={{ flexShrink: 0, pr: showDelete ? DELETE_BUTTON_GUTTER : 0 }}>
-            <Typography
-              variant="body2"
-              fontWeight={600}
-              sx={{
-                wordBreak: 'break-word',
-                display: '-webkit-box',
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: 'vertical',
-                overflow: 'hidden',
-              }}
-            >
-              {agent.name}
-            </Typography>
+            <Stack direction="row" spacing={0.5} alignItems="flex-start" sx={{ minWidth: 0 }}>
+              <MarketplaceTag agent={agent} iconOnly sx={{ mt: 0.25 }} />
+              <Typography
+                variant="body2"
+                fontWeight={600}
+                sx={{
+                  wordBreak: 'break-word',
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden',
+                }}
+              >
+                {agent.name}
+              </Typography>
+            </Stack>
             <StatusBadge status={agent.currentStatus} />
           </Stack>
 

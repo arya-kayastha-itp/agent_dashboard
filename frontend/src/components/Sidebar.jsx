@@ -9,6 +9,7 @@ import LightModeIcon from '@mui/icons-material/LightMode';
 import MenuIcon from '@mui/icons-material/Menu';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
 import PriceChangeIcon from '@mui/icons-material/PriceChange';
+import StorefrontIcon from '@mui/icons-material/Storefront';
 import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
 import Divider from '@mui/material/Divider';
@@ -36,6 +37,7 @@ const COLLAPSE_KEY = 'agent-dashboard.sidebarCollapsed';
 
 const NAV_ICONS = {
   '/': HomeIcon,
+  '/marketplace': StorefrontIcon,
   '/insights': InsightsIcon,
   '/daily-sheet': AssignmentIcon,
   '/teams': GroupsIcon,
@@ -127,6 +129,15 @@ export default function Sidebar({ onToggleTheme, themeMode }) {
 
   const footer = (
     <Box sx={{ p: 1.5 }}>
+      {!isNarrow && (
+        <Box sx={{ display: 'flex', justifyContent: showRail ? 'center' : 'flex-end', mb: 1 }}>
+          <Tooltip title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} placement="right">
+            <IconButton size="small" onClick={toggleCollapsed} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
+              {collapsed ? <ChevronRightIcon fontSize="small" /> : <ChevronLeftIcon fontSize="small" />}
+            </IconButton>
+          </Tooltip>
+        </Box>
+      )}
       <Divider sx={{ mb: 1.5 }} />
       <Stack direction={showRail ? 'column' : 'row'} spacing={1} alignItems="center" justifyContent="space-between">
         <Stack direction={showRail ? 'column' : 'row'} spacing={0.5} alignItems="center">
@@ -151,13 +162,7 @@ export default function Sidebar({ onToggleTheme, themeMode }) {
 
   const drawerContent = (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Stack
-        direction={showRail ? 'column' : 'row'}
-        alignItems="center"
-        justifyContent={showRail ? 'center' : 'space-between'}
-        spacing={showRail ? 1 : 0}
-        sx={{ p: 1.5 }}
-      >
+      <Stack direction="row" alignItems="center" justifyContent={showRail ? 'center' : 'flex-start'} sx={{ p: 1.5 }}>
         <Box
           component={Link}
           to="/"
@@ -172,11 +177,6 @@ export default function Sidebar({ onToggleTheme, themeMode }) {
         >
           <AiGarageLogo size={32} withWordmark={!showRail} fitWidth={showRail} />
         </Box>
-        {!isNarrow && (
-          <IconButton size="small" onClick={toggleCollapsed} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
-            {collapsed ? <ChevronRightIcon fontSize="small" /> : <ChevronLeftIcon fontSize="small" />}
-          </IconButton>
-        )}
       </Stack>
       <Divider />
       <Box sx={{ flexGrow: 1, overflowY: 'auto' }}>{navList}</Box>

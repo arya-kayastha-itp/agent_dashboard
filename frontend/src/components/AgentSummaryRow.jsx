@@ -4,6 +4,7 @@ import { computeAgentHealth } from '../agentHealth';
 import { STATUS_COLORS } from '../constants';
 import { formatAssignees } from '../formatters';
 import { HEALTH_LEVEL_META } from '../healthLevel';
+import MarketplaceTag from './MarketplaceTag';
 import ProgressBar from './ProgressBar';
 
 // The shared read-only row shape used by both the Executive's and the Agent
@@ -33,6 +34,7 @@ export default function AgentSummaryRow({ agent, onNameClick, leading, trailing 
         <Typography variant="caption" color={`${healthColor}.main`}>
           {health.reason}
         </Typography>
+        <MarketplaceTag agent={agent} sx={{ display: 'flex', width: 'fit-content', mt: 0.5 }} />
       </TableCell>
 
       <TableCell sx={{ py: 0.875, display: { xs: 'none', sm: 'table-cell' } }}>

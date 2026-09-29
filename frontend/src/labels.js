@@ -5,6 +5,7 @@ export const FIELD_LABELS = {
   eta: 'Target date',
   statusDescription: 'Notes',
   assignedTo: 'Owner',
+  marketplaceDeployment: 'Marketplace Deployment',
 };
 
 export const ALERT_TYPE_EXPLAINERS = {

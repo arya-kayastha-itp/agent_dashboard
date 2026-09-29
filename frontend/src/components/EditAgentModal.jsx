@@ -11,6 +11,7 @@ import { Controller, useForm } from 'react-hook-form';
 import { useUpdateAgent } from '../hooks/useAgents';
 import { FIELD_LABELS } from '../labels';
 import AssigneeSelect from './AssigneeSelect';
+import MarketplaceToggle from './MarketplaceToggle';
 import { useToast } from './ToastProvider';
 
 const FORM_ID = 'edit-agent-form';
@@ -33,7 +34,7 @@ export default function EditAgentModal({ open, onClose, agent }) {
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm({ defaultValues: { name: '', description: '', assigneeIds: [], eta: '' } });
+  } = useForm({ defaultValues: { name: '', description: '', assigneeIds: [], marketplaceDeployment: false, eta: '' } });
 
   useEffect(() => {
     if (agent && open) {
@@ -41,6 +42,7 @@ export default function EditAgentModal({ open, onClose, agent }) {
         name: agent.name || '',
         description: agent.description || '',
         assigneeIds: (agent.assignees || []).map((assignee) => assignee.id),
+        marketplaceDeployment: Boolean(agent.marketplaceDeployment),
         eta: toDateInputValue(agent.eta),
       });
     }
@@ -80,6 +82,12 @@ export default function EditAgentModal({ open, onClose, agent }) {
               name="assigneeIds"
               control={control}
               render={({ field }) => <AssigneeSelect value={field.value} onChange={field.onChange} />}
+            />
+
+            <Controller
+              name="marketplaceDeployment"
+              control={control}
+              render={({ field }) => <MarketplaceToggle value={field.value} onChange={field.onChange} />}
             />
 
             <TextField

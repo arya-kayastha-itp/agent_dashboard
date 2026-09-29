@@ -28,15 +28,22 @@ import { usePageTitle } from '../hooks/usePageTitle';
 // grid, so the projects that actually need a decision today surface first —
 // with an inline quick-update per row, and the full Daily Sheet still there
 // for a deliberate bulk pass across everything at once.
-export default function AgentManagerHomePage() {
-  usePageTitle('Home');
+//
+// The Marketplace page reuses this exact view with `marketplaceOnly`, which
+// narrows it to agents tagged for Marketplace Deployment.
+export default function AgentManagerHomePage({ marketplaceOnly = false }) {
+  usePageTitle(marketplaceOnly ? 'Marketplace' : 'Home');
   const { data: agents, isLoading, isError, refetch } = useAgents();
   const { data: todayRows } = useTodayUpdates();
   const [healthFilter, setHealthFilter] = useState(null);
   const reorderAgents = useReorderAgents();
 
-  const summary = useMemo(() => summarizeAgents(agents || []), [agents]);
-  const sorted = useMemo(() => sortBySeverity(agents || []), [agents]);
+  const scoped = useMemo(
+    () => (marketplaceOnly ? (agents || []).filter((agent) => agent.marketplaceDeployment) : agents || []),
+    [agents, marketplaceOnly],
+  );
+  const summary = useMemo(() => summarizeAgents(scoped), [scoped]);
+  const sorted = useMemo(() => sortBySeverity(scoped), [scoped]);
   const visible = useMemo(() => {
     if (!healthFilter) return sorted;
     return sorted.filter((agent) => computeAgentHealth(agent).level === healthFilter);
@@ -60,25 +67,27 @@ export default function AgentManagerHomePage() {
     <Box>
       <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2} sx={{ mb: 2 }}>
         <Box>
-          <Typography variant="h4">Home</Typography>
+          <Typography variant="h4">{marketplaceOnly ? 'Marketplace Deployment' : 'Home'}</Typography>
           <Typography color="text.secondary" sx={{ mt: 0.5 }}>
             {agents
               ? flaggedCount === 0
                 ? 'Everything is on track — nothing needs you today.'
-                : `${flaggedCount} of ${agents.length} projects need you today.`
+                : `${flaggedCount} of ${scoped.length} projects need you today.`
               : ' '}
           </Typography>
         </Box>
-        <Stack alignItems="flex-end" spacing={0.5}>
-          <Button component={RouterLink} to="/daily-sheet" variant="outlined">
-            Open Daily Update Sheet →
-          </Button>
-          {todayRows && (
-            <Typography variant="caption" color="text.secondary">
-              {carriedOverCount === 0 ? "Today's sheet: fully submitted" : "Today's sheet: not yet submitted"}
-            </Typography>
-          )}
-        </Stack>
+        {!marketplaceOnly && (
+          <Stack alignItems="flex-end" spacing={0.5}>
+            <Button component={RouterLink} to="/daily-sheet" variant="outlined">
+              Open Daily Update Sheet →
+            </Button>
+            {todayRows && (
+              <Typography variant="caption" color="text.secondary">
+                {carriedOverCount === 0 ? "Today's sheet: fully submitted" : "Today's sheet: not yet submitted"}
+              </Typography>
+            )}
+          </Stack>
+        )}
       </Stack>
 
       {isLoading && (
@@ -93,7 +102,13 @@ export default function AgentManagerHomePage() {
         <Alert severity="info">No agents yet. Click &quot;Add Agent&quot; to create the first one.</Alert>
       )}
 
-      {agents && agents.length > 0 && (
+      {marketplaceOnly && agents && agents.length > 0 && scoped.length === 0 && (
+        <Alert severity="info">
+          No agents are tagged for Marketplace Deployment yet. Turn the tag on when adding or editing an agent.
+        </Alert>
+      )}
+
+      {scoped.length > 0 && (
         <>
           <DashboardSummaryBanner summary={summary} activeFilter={healthFilter} onFilterChange={setHealthFilter} />
 
@@ -112,8 +127,10 @@ export default function AgentManagerHomePage() {
                 </TableHead>
                 <TableBody>
                   <SortableContext items={sortedAgents.map((a) => a.id)} strategy={verticalListSortingStrategy}>
+                    {/* Reordering renumbers only the rows on screen — safe within a health
+                        group, but on the Marketplace page it would scramble the hidden agents. */}
                     {sortedAgents.map((agent) => (
-                      <SortableAgentRow key={agent.id} agent={agent} />
+                      <SortableAgentRow key={agent.id} agent={agent} dragDisabled={marketplaceOnly} />
                     ))}
                   </SortableContext>
                 </TableBody>
