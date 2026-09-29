@@ -9,8 +9,9 @@ const { EXECUTIVE, AGENT_MANAGER, FINOPS } = PERSONAS;
 // secondary "Configure" menu instead of as equal-weight top-nav buttons.
 export const NAV_ITEMS = [
   { label: 'Home', path: '/', visibleTo: [EXECUTIVE, AGENT_MANAGER, FINOPS] },
-  { label: 'Portfolio Insights', path: '/insights', visibleTo: [EXECUTIVE] },
+  { label: 'Metrics', path: '/insights', visibleTo: [EXECUTIVE] },
   { label: 'Daily Update Sheet', path: '/daily-sheet', visibleTo: [AGENT_MANAGER] },
+  { label: 'Teams', path: '/teams', visibleTo: [AGENT_MANAGER] },
   { label: 'Pricing', path: '/finops/pricing', visibleTo: [FINOPS], configure: true },
   { label: 'Alert Rules', path: '/finops/thresholds', visibleTo: [FINOPS], configure: true },
 ];

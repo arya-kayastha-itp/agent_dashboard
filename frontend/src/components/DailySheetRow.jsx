@@ -9,7 +9,10 @@ import { HEALTH_LEVEL_META, statusToHealthLevel } from '../healthLevel';
 import ProgressSlider from './ProgressSlider';
 
 export default function DailySheetRow({ agent, value, carriedOver, onChange }) {
-  const handleField = (field) => (event) => onChange({ ...value, [field]: event.target.value });
+  // onChange receives just the changed field(s); the page merges them into the
+  // latest state, so a quick second edit can't overwrite the first with a
+  // stale copy of this row.
+  const handleField = (field) => (event) => onChange({ [field]: event.target.value });
   const { Icon: StatusIcon, color: statusColor } = HEALTH_LEVEL_META[statusToHealthLevel(value.status)];
 
   return (
@@ -37,7 +40,7 @@ export default function DailySheetRow({ agent, value, carriedOver, onChange }) {
         </Stack>
       </TableCell>
       <TableCell sx={{ minWidth: 240 }}>
-        <ProgressSlider value={value.progress} onChange={(v) => onChange({ ...value, progress: v })} size="small" />
+        <ProgressSlider value={value.progress} onChange={(v) => onChange({ progress: v })} size="small" />
       </TableCell>
       <TableCell sx={{ minWidth: 220 }}>
         <TextField

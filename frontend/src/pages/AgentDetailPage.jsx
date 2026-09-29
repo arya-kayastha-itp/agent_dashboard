@@ -9,9 +9,10 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { format } from 'date-fns';
 import { useState } from 'react';
-import { Link as RouterLink, useParams } from 'react-router-dom';
+import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
 import { computeAgentHealth } from '../agentHealth';
 import AgentUpdateForm from '../components/AgentUpdateForm';
+import DeleteAgentButton from '../components/DeleteAgentButton';
 import EditAgentModal from '../components/EditAgentModal';
 import ErrorAlert from '../components/ErrorAlert';
 import HistoryChart from '../components/HistoryChart';
@@ -19,6 +20,7 @@ import InfoTooltip from '../components/InfoTooltip';
 import InsightsPanel from '../components/InsightsPanel';
 import ProgressBar from '../components/ProgressBar';
 import StatusBadge from '../components/StatusBadge';
+import { formatAssignees } from '../formatters';
 import { HEALTH_LEVELS, HEALTH_LEVEL_META } from '../healthLevel';
 import { useAgentHistory } from '../hooks/useAgentHistory';
 import { useAgents } from '../hooks/useAgents';
@@ -29,6 +31,7 @@ import { canEditAgents } from '../persona/permissions';
 
 export default function AgentDetailPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { data: agents } = useAgents();
   const { data: history, isLoading, isError, refetch } = useAgentHistory(id);
   const { persona } = usePersona();
@@ -61,9 +64,9 @@ export default function AgentDetailPage() {
                   {agent.description}
                 </Typography>
               )}
-              {agent.assignedTo && (
+              {agent.assignees?.length > 0 && (
                 <Typography variant="body2" color="text.secondary">
-                  {FIELD_LABELS.assignedTo}: {agent.assignedTo}
+                  {FIELD_LABELS.assignedTo}: {formatAssignees(agent)}
                 </Typography>
               )}
               {agent.eta && (
@@ -85,7 +88,10 @@ export default function AgentDetailPage() {
                 </Button>
               )}
             </Box>
-            <StatusBadge status={agent.currentStatus} />
+            <Stack direction="row" spacing={0.5} alignItems="center">
+              <StatusBadge status={agent.currentStatus} />
+              <DeleteAgentButton agent={agent} onDeleted={() => navigate('/')} />
+            </Stack>
           </Stack>
 
           {health && health.level !== HEALTH_LEVELS.NEUTRAL && (

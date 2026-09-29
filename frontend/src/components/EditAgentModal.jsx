@@ -7,9 +7,10 @@ import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import { format } from 'date-fns';
 import { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { useUpdateAgent } from '../hooks/useAgents';
 import { FIELD_LABELS } from '../labels';
+import AssigneeSelect from './AssigneeSelect';
 import { useToast } from './ToastProvider';
 
 const FORM_ID = 'edit-agent-form';
@@ -28,17 +29,18 @@ export default function EditAgentModal({ open, onClose, agent }) {
   const showToast = useToast();
   const {
     register,
+    control,
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm({ defaultValues: { name: '', description: '', assignedTo: '', eta: '' } });
+  } = useForm({ defaultValues: { name: '', description: '', assigneeIds: [], eta: '' } });
 
   useEffect(() => {
     if (agent && open) {
       reset({
         name: agent.name || '',
         description: agent.description || '',
-        assignedTo: agent.assignedTo || '',
+        assigneeIds: (agent.assignees || []).map((assignee) => assignee.id),
         eta: toDateInputValue(agent.eta),
       });
     }
@@ -74,7 +76,11 @@ export default function EditAgentModal({ open, onClose, agent }) {
 
             <TextField label="Description" fullWidth multiline minRows={2} {...register('description')} />
 
-            <TextField label={FIELD_LABELS.assignedTo} fullWidth {...register('assignedTo')} />
+            <Controller
+              name="assigneeIds"
+              control={control}
+              render={({ field }) => <AssigneeSelect value={field.value} onChange={field.onChange} />}
+            />
 
             <TextField
               label={FIELD_LABELS.eta}

@@ -22,7 +22,6 @@ import ErrorAlert from '../components/ErrorAlert';
 import { computeAgentHealth, sortBySeverity, summarizeAgents } from '../agentHealth';
 import { useAgents, useReorderAgents } from '../hooks/useAgents';
 import { useTodayUpdates } from '../hooks/useDailySheet';
-import { useAgentsInsightsSummary } from '../hooks/useInsights';
 import { usePageTitle } from '../hooks/usePageTitle';
 
 // The Agent Manager's Home: a severity-sorted action queue instead of a card
@@ -33,7 +32,6 @@ export default function AgentManagerHomePage() {
   usePageTitle('Home');
   const { data: agents, isLoading, isError, refetch } = useAgents();
   const { data: todayRows } = useTodayUpdates();
-  const { data: insightsSummary } = useAgentsInsightsSummary();
   const [healthFilter, setHealthFilter] = useState(null);
   const reorderAgents = useReorderAgents();
 
@@ -100,24 +98,22 @@ export default function AgentManagerHomePage() {
           <DashboardSummaryBanner summary={summary} activeFilter={healthFilter} onFilterChange={setHealthFilter} />
 
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 'calc(100vh - 300px)' }}>
+            <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 'calc(100vh - 220px)' }}>
               <Table size="small" stickyHeader>
                 <TableHead>
                   <TableRow>
                     <TableCell sx={{ width: 40 }} />
-                    <TableCell sx={{ width: 32 }} />
                     <TableCell>Agent</TableCell>
-                    <TableCell>Status</TableCell>
                     <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Assignee</TableCell>
-                    <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>This month</TableCell>
-                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' }, width: 160 }}>Progress</TableCell>
+                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' }, width: 260 }}>Progress</TableCell>
+                    <TableCell>Status</TableCell>
                     <TableCell align="right" />
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   <SortableContext items={sortedAgents.map((a) => a.id)} strategy={verticalListSortingStrategy}>
                     {sortedAgents.map((agent) => (
-                      <SortableAgentRow key={agent.id} agent={agent} insight={insightsSummary?.byAgent?.[agent.id]} />
+                      <SortableAgentRow key={agent.id} agent={agent} />
                     ))}
                   </SortableContext>
                 </TableBody>

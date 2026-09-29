@@ -17,10 +17,7 @@ import AgentSummaryRow from '../components/AgentSummaryRow';
 import DashboardSummaryBanner from '../components/DashboardSummaryBanner';
 import ErrorAlert from '../components/ErrorAlert';
 import { useAgents } from '../hooks/useAgents';
-import { useAgentsInsightsSummary } from '../hooks/useInsights';
 import { usePageTitle } from '../hooks/usePageTitle';
-
-const COLUMN_COUNT = 6;
 
 // The Executive's Home: a rollup + every project, worst-first, in the same
 // row shape and the same click-through-to-detail behavior the Agent
@@ -30,7 +27,6 @@ export default function ExecutivePortfolioPage() {
   usePageTitle('Home');
   const navigate = useNavigate();
   const { data: agents, isLoading, isError, refetch } = useAgents();
-  const { data: insightsSummary } = useAgentsInsightsSummary();
   const [healthFilter, setHealthFilter] = useState(null);
 
   const summary = useMemo(() => summarizeAgents(agents || []), [agents]);
@@ -56,16 +52,14 @@ export default function ExecutivePortfolioPage() {
         <>
           <DashboardSummaryBanner summary={summary} activeFilter={healthFilter} onFilterChange={setHealthFilter} />
 
-          <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 'calc(100vh - 220px)' }}>
+          <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 'calc(100vh - 150px)' }}>
             <Table size="small" stickyHeader>
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ width: 32 }} />
                   <TableCell>Agent</TableCell>
-                  <TableCell>Status</TableCell>
                   <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Assignee</TableCell>
-                  <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>This month</TableCell>
-                  <TableCell sx={{ display: { xs: 'none', md: 'table-cell' }, width: 160 }}>Progress</TableCell>
+                  <TableCell sx={{ display: { xs: 'none', md: 'table-cell' }, width: 260 }}>Progress</TableCell>
+                  <TableCell>Status</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -76,7 +70,7 @@ export default function ExecutivePortfolioPage() {
                     onClick={() => navigate(`/agents/${agent.id}`)}
                     sx={{ cursor: 'pointer' }}
                   >
-                    <AgentSummaryRow agent={agent} insight={insightsSummary?.byAgent?.[agent.id]} />
+                    <AgentSummaryRow agent={agent} />
                   </TableRow>
                 ))}
               </TableBody>

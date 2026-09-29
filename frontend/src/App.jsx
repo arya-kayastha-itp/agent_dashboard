@@ -1,28 +1,11 @@
 import AddIcon from '@mui/icons-material/Add';
-import DarkModeIcon from '@mui/icons-material/DarkMode';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import LightModeIcon from '@mui/icons-material/LightMode';
-import MenuIcon from '@mui/icons-material/Menu';
-import AppBar from '@mui/material/AppBar';
 import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
 import Container from '@mui/material/Container';
 import Fab from '@mui/material/Fab';
-import IconButton from '@mui/material/IconButton';
-import Menu from '@mui/material/Menu';
-import MenuItem from '@mui/material/MenuItem';
-import Stack from '@mui/material/Stack';
-import Tooltip from '@mui/material/Tooltip';
-import { useTheme } from '@mui/material/styles';
-import Toolbar from '@mui/material/Toolbar';
-import useMediaQuery from '@mui/material/useMediaQuery';
-import { useState } from 'react';
-import { Link, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { Route, Routes, useLocation } from 'react-router-dom';
 import AddAgentModal from './components/AddAgentModal';
-import AlertBell from './components/AlertBell';
-import AiGarageLogo from './components/AiGarageLogo';
-import { PERSONA_LABELS } from './labels';
+import AddTeamMemberModal from './components/AddTeamMemberModal';
+import Sidebar from './components/Sidebar';
 import AgentDetailPage from './pages/AgentDetailPage';
 import AllAgentsPage from './pages/AllAgentsPage';
 import DailyUpdateSheetPage from './pages/DailyUpdateSheetPage';
@@ -30,12 +13,14 @@ import HomePage from './pages/HomePage';
 import PersonaLoginPage from './pages/PersonaLoginPage';
 import PortfolioInsightsPage from './pages/PortfolioInsightsPage';
 import PricingAdminPage from './pages/PricingAdminPage';
+import TeamsPage from './pages/TeamsPage';
 import ThresholdsAdminPage from './pages/ThresholdsAdminPage';
-import { NAV_ITEMS, SHOW_ALERT_BELL, navItemFor } from './persona/navConfig';
+import { navItemFor } from './persona/navConfig';
 import { usePersona } from './persona/PersonaContext';
 import { canAddAgent } from './persona/permissions';
 import RequirePersona from './persona/RequirePersona';
 import RequirePersonaRoute from './persona/RequirePersonaRoute';
+import { useState } from 'react';
 
 function restricted(path, element) {
   return (
@@ -45,55 +30,12 @@ function restricted(path, element) {
   );
 }
 
-function ConfigureMenu({ items }) {
-  const [anchorEl, setAnchorEl] = useState(null);
-  const location = useLocation();
-
-  if (items.length === 0) return null;
-
-  return (
-    <>
-      <Button
-        color="inherit"
-        onClick={(e) => setAnchorEl(e.currentTarget)}
-        endIcon={<ExpandMoreIcon sx={{ transform: anchorEl ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />}
-        sx={{ fontWeight: 400 }}
-      >
-        Configure
-      </Button>
-      <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
-        {items.map((item) => (
-          <MenuItem
-            key={item.path}
-            component={Link}
-            to={item.path}
-            selected={location.pathname === item.path}
-            onClick={() => setAnchorEl(null)}
-          >
-            {item.label}
-          </MenuItem>
-        ))}
-      </Menu>
-    </>
-  );
-}
-
 export default function App({ onToggleTheme, themeMode }) {
   const [addAgentOpen, setAddAgentOpen] = useState(false);
-  const [navMenuAnchor, setNavMenuAnchor] = useState(null);
-  const { persona, clearPersona } = usePersona();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const theme = useTheme();
-  const isNarrow = useMediaQuery(theme.breakpoints.down('md'));
-
-  const handleSwitchPersona = () => {
-    clearPersona();
-    navigate('/login');
-  };
-
-  const primaryItems = NAV_ITEMS.filter((item) => item.visibleTo.includes(persona) && !item.configure);
-  const configureItems = NAV_ITEMS.filter((item) => item.visibleTo.includes(persona) && item.configure);
+  const [addMemberOpen, setAddMemberOpen] = useState(false);
+  const { persona } = usePersona();
+  // The floating action button adds whatever the current page is a list of.
+  const onTeamsPage = useLocation().pathname === '/teams';
 
   return (
     <Box>
@@ -103,113 +45,39 @@ export default function App({ onToggleTheme, themeMode }) {
           path="/*"
           element={
             <RequirePersona>
-              <AppBar position="static" color="default" elevation={0} sx={{ borderBottom: 1, borderColor: 'divider' }}>
-                <Toolbar>
-                  <Box component={Link} to="/" sx={{ display: 'flex', flexGrow: 1, textDecoration: 'none', color: 'inherit' }}>
-                    <AiGarageLogo />
-                  </Box>
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    {isNarrow ? (
-                      <>
-                        <IconButton
-                          aria-label="Open navigation menu"
-                          aria-haspopup="true"
-                          onClick={(e) => setNavMenuAnchor(e.currentTarget)}
-                        >
-                          <MenuIcon />
-                        </IconButton>
-                        <Menu anchorEl={navMenuAnchor} open={Boolean(navMenuAnchor)} onClose={() => setNavMenuAnchor(null)}>
-                          {[...primaryItems, ...configureItems].map((item) => {
-                            const isActive = location.pathname === item.path;
-                            return (
-                              <MenuItem
-                                key={item.path}
-                                component={Link}
-                                to={item.path}
-                                selected={isActive}
-                                onClick={() => setNavMenuAnchor(null)}
-                              >
-                                {item.label}
-                              </MenuItem>
-                            );
-                          })}
-                        </Menu>
-                      </>
-                    ) : (
-                      <>
-                        {primaryItems.map((item) => {
-                          const isActive = location.pathname === item.path;
-                          return (
-                            <Button
-                              key={item.path}
-                              component={Link}
-                              to={item.path}
-                              color={isActive ? 'primary' : 'inherit'}
-                              aria-current={isActive ? 'page' : undefined}
-                              sx={{
-                                fontWeight: isActive ? 600 : 400,
-                                borderRadius: 0,
-                                borderBottom: 2,
-                                borderColor: isActive ? 'primary.main' : 'transparent',
-                              }}
-                            >
-                              {item.label}
-                            </Button>
-                          );
-                        })}
-                        <ConfigureMenu items={configureItems} />
-                      </>
-                    )}
-                    {SHOW_ALERT_BELL.includes(persona) && <AlertBell />}
-                    <Tooltip title={themeMode === 'light' ? 'Dark mode' : 'Light mode'}>
-                      <IconButton
-                        onClick={onToggleTheme}
-                        size="small"
-                        sx={{
-                          color: 'inherit',
-                          '&:hover': {
-                            backgroundColor: theme.palette.mode === 'light' ? 'rgba(0, 0, 0, 0.04)' : 'rgba(255, 255, 255, 0.1)',
-                          },
-                        }}
-                      >
-                        {themeMode === 'light' ? <DarkModeIcon /> : <LightModeIcon />}
-                      </IconButton>
-                    </Tooltip>
-                    <Chip
-                      label={isNarrow ? PERSONA_LABELS[persona] : `${PERSONA_LABELS[persona]} · Switch`}
-                      onClick={handleSwitchPersona}
-                      variant="outlined"
-                      size="small"
-                    />
-                  </Stack>
-                </Toolbar>
-              </AppBar>
+              <Box sx={{ display: 'flex' }}>
+                <Sidebar onToggleTheme={onToggleTheme} themeMode={themeMode} />
 
-              <Container sx={{ py: 2.5 }}>
-                <Routes>
-                  <Route path="/" element={<HomePage />} />
-                  <Route path="/agents" element={<AllAgentsPage />} />
-                  <Route path="/insights" element={restricted('/insights', <PortfolioInsightsPage />)} />
-                  <Route path="/daily-sheet" element={restricted('/daily-sheet', <DailyUpdateSheetPage />)} />
-                  <Route path="/agents/:id" element={<AgentDetailPage />} />
-                  <Route path="/finops/pricing" element={restricted('/finops/pricing', <PricingAdminPage />)} />
-                  <Route path="/finops/thresholds" element={restricted('/finops/thresholds', <ThresholdsAdminPage />)} />
-                </Routes>
-              </Container>
+                <Box component="main" sx={{ flexGrow: 1, minWidth: 0 }}>
+                  <Container maxWidth={false} sx={{ py: 2.5, px: { xs: 2, md: 3 } }}>
+                    <Routes>
+                      <Route path="/" element={<HomePage />} />
+                      <Route path="/agents" element={<AllAgentsPage />} />
+                      <Route path="/insights" element={restricted('/insights', <PortfolioInsightsPage />)} />
+                      <Route path="/daily-sheet" element={restricted('/daily-sheet', <DailyUpdateSheetPage />)} />
+                      <Route path="/teams" element={restricted('/teams', <TeamsPage />)} />
+                      <Route path="/agents/:id" element={<AgentDetailPage />} />
+                      <Route path="/finops/pricing" element={restricted('/finops/pricing', <PricingAdminPage />)} />
+                      <Route path="/finops/thresholds" element={restricted('/finops/thresholds', <ThresholdsAdminPage />)} />
+                    </Routes>
+                  </Container>
+                </Box>
+              </Box>
 
               {canAddAgent(persona) && (
                 <Fab
                   variant="extended"
                   color="primary"
-                  onClick={() => setAddAgentOpen(true)}
+                  onClick={() => (onTeamsPage ? setAddMemberOpen(true) : setAddAgentOpen(true))}
                   sx={{ position: 'fixed', bottom: 24, right: 24 }}
                 >
                   <AddIcon sx={{ mr: 1 }} />
-                  Add Agent
+                  {onTeamsPage ? 'Add Member' : 'Add Agent'}
                 </Fab>
               )}
 
               <AddAgentModal open={addAgentOpen} onClose={() => setAddAgentOpen(false)} />
+              <AddTeamMemberModal open={addMemberOpen} onClose={() => setAddMemberOpen(false)} />
             </RequirePersona>
           }
         />

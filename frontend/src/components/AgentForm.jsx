@@ -5,12 +5,13 @@ import Typography from '@mui/material/Typography';
 import { Controller, useForm } from 'react-hook-form';
 import { STATUS_VALUES } from '../constants';
 import { FIELD_LABELS } from '../labels';
+import AssigneeSelect from './AssigneeSelect';
 import ProgressSlider from './ProgressSlider';
 
 const DEFAULT_VALUES = {
   name: '',
   description: '',
-  assignedTo: '',
+  assigneeIds: [],
   status: 'Not Started',
   eta: '',
   progress: 0,
@@ -39,7 +40,11 @@ export default function AgentForm({ formId, onSubmit }) {
 
         <TextField label="Description" fullWidth multiline minRows={2} {...register('description')} />
 
-        <TextField label="Assigned To" fullWidth {...register('assignedTo')} />
+        <Controller
+          name="assigneeIds"
+          control={control}
+          render={({ field }) => <AssigneeSelect value={field.value} onChange={field.onChange} />}
+        />
 
         <Stack direction="row" spacing={2}>
           <Controller

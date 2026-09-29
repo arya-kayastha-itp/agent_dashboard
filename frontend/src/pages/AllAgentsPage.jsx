@@ -9,7 +9,6 @@ import DashboardSummaryBanner from '../components/DashboardSummaryBanner';
 import ErrorAlert from '../components/ErrorAlert';
 import { computeAgentHealth, summarizeAgents } from '../agentHealth';
 import { useAgents } from '../hooks/useAgents';
-import { useAgentsInsightsSummary } from '../hooks/useInsights';
 import { usePageTitle } from '../hooks/usePageTitle';
 
 // The full card grid — a drill-through page rather than anyone's Home. The
@@ -19,7 +18,6 @@ import { usePageTitle } from '../hooks/usePageTitle';
 export default function AllAgentsPage() {
   usePageTitle('All Agents');
   const { data: agents, isLoading, isError, refetch } = useAgents();
-  const { data: insightsSummary } = useAgentsInsightsSummary();
   const [healthFilter, setHealthFilter] = useState(null);
 
   const summary = useMemo(() => summarizeAgents(agents || []), [agents]);
@@ -53,12 +51,12 @@ export default function AllAgentsPage() {
       <Box
         sx={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-          gap: 3,
+          gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+          gap: 1.5,
         }}
       >
         {visibleAgents?.map((agent) => (
-          <AgentCard key={agent.id} agent={agent} insights={insightsSummary?.byAgent?.[agent.id]} />
+          <AgentCard key={agent.id} agent={agent} />
         ))}
       </Box>
     </Box>
