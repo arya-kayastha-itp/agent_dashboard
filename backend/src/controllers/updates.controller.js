@@ -20,8 +20,8 @@ async function createUpdate(req, res, next) {
 
 async function createBatch(req, res, next) {
   try {
-    const results = await updatesService.recordBatch(req.validatedBody);
-    res.status(201).json({ savedCount: results.length, updatedAgents: results.map((r) => r.agent) });
+    const result = await updatesService.recordBatch(req.validatedBody);
+    res.status(201).json(result);
   } catch (err) {
     next(err);
   }

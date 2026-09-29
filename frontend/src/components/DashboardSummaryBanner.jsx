@@ -71,7 +71,7 @@ export default function DashboardSummaryBanner({ summary, activeFilter, onFilter
   ].filter((c) => c.count > 0);
 
   return (
-    <Box sx={{ mb: 2 }}>
+    <Box sx={{ mb: 1.5 }}>
       <Box
         sx={{
           display: 'grid',

@@ -11,7 +11,8 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import TableSortLabel from '@mui/material/TableSortLabel';
 import Typography from '@mui/material/Typography';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import DailySheetRow from '../components/DailySheetRow';
 import ErrorAlert from '../components/ErrorAlert';
 import { useToast } from '../components/ToastProvider';
@@ -27,7 +28,9 @@ export default function DailyUpdateSheetPage() {
   const { data: allHistory, isLoading: isHistoryLoading, isError: isHistoryError, refetch: refetchHistory } = useAllUpdatesHistory();
   const submitUpdates = useSubmitDailyUpdates();
   const showToast = useToast();
+  const navigate = useNavigate();
   const [entries, setEntries] = useState({});
+  const dirtyIds = useRef(new Set());
 
   // Only "Agent" is sortable — Status/Progress/Notes are live-editable per
   // row, and sorting by an in-progress edit would reorder the table under
@@ -38,19 +41,32 @@ export default function DailyUpdateSheetPage() {
   const carriedOverCount = useMemo(() => Object.values(entries).filter((e) => e.carriedOver).length, [entries]);
   const totalCount = Object.keys(entries).length;
 
+  // Seeds the form from the server, and re-seeds whenever fresh rows arrive
+  // (window-focus refetch, another tab's save) — but never for a row the user
+  // has already edited, or a background refetch would silently revert their
+  // unsaved changes to the old server values.
   useEffect(() => {
     if (!rows) return;
-    const initial = {};
-    rows.forEach(({ agent, todayUpdate }) => {
-      initial[agent.id] = {
-        status: todayUpdate?.status ?? agent.currentStatus,
-        progress: todayUpdate?.progress ?? agent.currentProgress,
-        statusDescription: todayUpdate?.statusDescription ?? agent.currentStatusDescription ?? '',
-        carriedOver: !todayUpdate,
-      };
+    setEntries((prev) => {
+      const next = {};
+      rows.forEach(({ agent, todayUpdate }) => {
+        next[agent.id] = dirtyIds.current.has(agent.id) && prev[agent.id]
+          ? prev[agent.id]
+          : {
+              status: todayUpdate?.status ?? agent.currentStatus,
+              progress: todayUpdate?.progress ?? agent.currentProgress,
+              statusDescription: todayUpdate?.statusDescription ?? agent.currentStatusDescription ?? '',
+              carriedOver: !todayUpdate,
+            };
+      });
+      return next;
     });
-    setEntries(initial);
   }, [rows]);
+
+  const handleRowChange = (agentId, patch) => {
+    dirtyIds.current.add(agentId);
+    setEntries((prev) => ({ ...prev, [agentId]: { ...prev[agentId], ...patch } }));
+  };
 
   const handleSubmit = async () => {
     const payload = {
@@ -64,6 +80,7 @@ export default function DailyUpdateSheetPage() {
     try {
       await submitUpdates.mutateAsync(payload);
       showToast("Today's updates saved.", 'success');
+      navigate('/');
     } catch (err) {
       showToast(err?.response?.data?.error?.message || "Failed to save today's updates. Please try again.", 'error');
     }
@@ -118,7 +135,7 @@ export default function DailyUpdateSheetPage() {
                   agent={agent}
                   value={entries[agent.id]}
                   carriedOver={entries[agent.id].carriedOver}
-                  onChange={(value) => setEntries((prev) => ({ ...prev, [agent.id]: value }))}
+                  onChange={(patch) => handleRowChange(agent.id, patch)}
                 />
               ) : null
             )}

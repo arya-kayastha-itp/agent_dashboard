@@ -9,7 +9,7 @@ import AgentQueueRow from './AgentQueueRow';
 // link, "Update" toggle, inline form controls). The row itself is a <tr>,
 // so the sortable ref/style go directly onto it rather than onto a wrapper
 // element — a <div> around a <tr> would get hoisted out of the table.
-export default function SortableAgentRow({ agent, insight }) {
+export default function SortableAgentRow({ agent }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: agent.id });
 
   const style = {
@@ -23,7 +23,6 @@ export default function SortableAgentRow({ agent, insight }) {
   return (
     <AgentQueueRow
       agent={agent}
-      insight={insight}
       rowRef={setNodeRef}
       rowStyle={style}
       dragHandle={

@@ -9,6 +9,7 @@
 require('dotenv').config();
 const db = require('./databricksClient');
 const agentsService = require('../services/agents.service');
+const teamMembersService = require('../services/team-members.service');
 const updatesService = require('../services/updates.service');
 const pricingService = require('../services/pricing.service');
 const thresholdsService = require('../services/thresholds.service');
@@ -44,7 +45,7 @@ const ERROR_CODES = {
 };
 
 async function clearAll() {
-  for (const table of ['finops_alerts', 'api_usage_logs', 'model_pricing', 'finops_thresholds', 'agent_updates', 'agents']) {
+  for (const table of ['finops_alerts', 'api_usage_logs', 'model_pricing', 'finops_thresholds', 'agent_updates', 'agent_assignees', 'team_members', 'agents']) {
     // eslint-disable-next-line no-await-in-loop
     await db.query(`DELETE FROM ${table}`);
   }
@@ -52,11 +53,19 @@ async function clearAll() {
 
 async function seedAgents() {
   const now = new Date();
+
+  // Agents can only be assigned to team members, so the roster comes first.
+  const memberIds = {};
+  for (const name of ['Arya Kayastha', 'Priya Sharma', 'Jordan Lee']) {
+    // eslint-disable-next-line no-await-in-loop
+    memberIds[name] = (await teamMembersService.createTeamMember({ name })).id;
+  }
+
   const specs = [
     {
       name: 'Support Triage Agent',
       description: 'Classifies and routes inbound support tickets.',
-      assignedTo: 'Arya Kayastha',
+      assigneeIds: [memberIds['Arya Kayastha']],
       eta: '2026-09-15',
       status: 'In Progress',
       progress: 60,
@@ -65,7 +74,7 @@ async function seedAgents() {
     {
       name: 'Invoice Extraction Agent',
       description: 'Extracts line items from vendor invoices into structured data.',
-      assignedTo: 'Priya Sharma',
+      assigneeIds: [memberIds['Priya Sharma']],
       eta: '2026-09-01',
       status: 'Blocked',
       progress: 35,
@@ -74,7 +83,7 @@ async function seedAgents() {
     {
       name: 'Meeting Notes Agent',
       description: 'Summarizes meeting transcripts and extracts action items.',
-      assignedTo: 'Jordan Lee',
+      assigneeIds: [memberIds['Jordan Lee']],
       eta: '2026-08-30',
       status: 'Completed',
       progress: 100,

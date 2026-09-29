@@ -6,6 +6,7 @@ const agentsRoutes = require('./routes/agents.routes');
 const updatesRoutes = require('./routes/updates.routes');
 const finopsRoutes = require('./routes/finops.routes');
 const insightsRoutes = require('./routes/insights.routes');
+const teamMembersRoutes = require('./routes/team-members.routes');
 const { notFoundHandler, errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
@@ -20,6 +21,7 @@ app.use('/api/agents', agentsRoutes);
 app.use('/api/updates', updatesRoutes);
 app.use('/api/finops', finopsRoutes);
 app.use('/api/insights', insightsRoutes);
+app.use('/api/team-members', teamMembersRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

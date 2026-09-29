@@ -55,14 +55,71 @@ async function recordUpdateStandalone(payload) {
   return recordUpdate(payload);
 }
 
-async function recordBatch({ updateDate, entries }) {
-  const results = [];
-  for (const entry of entries) {
-    // eslint-disable-next-line no-await-in-loop
-    const result = await recordUpdate({ ...entry, updateDate });
-    results.push(result);
+// Saves a whole daily sheet in a fixed number of statements (one lookup, two
+// MERGEs, one read-back) instead of ~4 warehouse round-trips per agent, so a
+// large sheet can't time out partway and leave only some agents saved. An
+// unknown agent id rejects the whole batch before anything is written — a
+// deleted agent must never silently drop out of "Submit" or leave an orphan
+// history row. If a later statement still fails, the history rows are already
+// written but agents' current_* fields aren't (Delta has no cross-table
+// transactions); re-submitting is safe since both MERGEs are idempotent.
+async function recordBatch({ updateDate, entries, source = 'manual' }) {
+  const date = updateDate || todayDateString();
+  const now = new Date().toISOString();
+
+  // One row per agent — MERGE rejects a source with duplicate match keys.
+  const rows = [...new Map(entries.map((entry) => [entry.agentId, entry])).values()];
+
+  const params = { date, now, source };
+  const idPlaceholders = rows.map((row, i) => {
+    params[`agentId${i}`] = row.agentId;
+    return `:agentId${i}`;
+  });
+
+  const existing = await db.query(`SELECT id FROM agents WHERE id IN (${idPlaceholders.join(', ')})`, params);
+  if (existing.length !== rows.length) {
+    const known = new Set(existing.map((r) => r.id));
+    const err = new Error(`${rows.length - known.size} agent(s) no longer exist — refresh the sheet and try again.`);
+    err.status = 404;
+    err.code = 'AGENT_NOT_FOUND';
+    throw err;
   }
-  return results;
+
+  const values = rows.map((row, i) => {
+    params[`status${i}`] = row.status;
+    params[`progress${i}`] = row.progress;
+    params[`description${i}`] = row.statusDescription ?? null;
+    params[`newId${i}`] = crypto.randomUUID();
+    return `(:agentId${i}, :status${i}, CAST(:progress${i} AS INT), CAST(:description${i} AS STRING), :newId${i})`;
+  });
+  const sourceRows = `SELECT * FROM VALUES ${values.join(', ')} AS s(agent_id, status, progress, status_description, new_id)`;
+
+  await db.query(
+    `MERGE INTO agent_updates AS u
+     USING (${sourceRows}) AS s
+     ON u.agent_id = s.agent_id AND u.update_date = CAST(:date AS DATE)
+     WHEN MATCHED THEN UPDATE SET
+       status = s.status, progress = s.progress, status_description = s.status_description, source = :source
+     WHEN NOT MATCHED THEN INSERT (id, agent_id, update_date, status, progress, status_description, source, created_at)
+       VALUES (s.new_id, s.agent_id, CAST(:date AS DATE), s.status, s.progress, s.status_description, :source, CAST(:now AS TIMESTAMP))`,
+    params,
+  );
+
+  await db.query(
+    `MERGE INTO agents AS a
+     USING (${sourceRows}) AS s
+     ON a.id = s.agent_id
+     WHEN MATCHED THEN UPDATE SET
+       current_status = s.status,
+       current_progress = s.progress,
+       current_status_description = s.status_description,
+       last_update_at = CAST(:now AS TIMESTAMP),
+       updated_at = CAST(:now AS TIMESTAMP)`,
+    params,
+  );
+
+  const updatedAgents = await db.query(`SELECT ${AGENT_SELECT} FROM agents WHERE id IN (${idPlaceholders.join(', ')})`, params);
+  return { savedCount: rows.length, updatedAgents };
 }
 
 async function getTodayUpdates() {

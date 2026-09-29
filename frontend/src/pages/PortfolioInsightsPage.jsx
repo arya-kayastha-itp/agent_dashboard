@@ -6,7 +6,7 @@ import { usePageTitle } from '../hooks/usePageTitle';
 // page, crowding the agent table underneath it. It now lives on its own
 // page instead, full-width, same as it always looked.
 export default function PortfolioInsightsPage() {
-  usePageTitle('Portfolio Insights');
+  usePageTitle('Metrics');
 
   return (
     <Box>

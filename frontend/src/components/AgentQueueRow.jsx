@@ -16,14 +16,14 @@ import AgentSummaryRow from './AgentSummaryRow';
 import ProgressSlider from './ProgressSlider';
 import { useToast } from './ToastProvider';
 
-export const AGENT_QUEUE_COLUMN_COUNT = 8;
+export const AGENT_QUEUE_COLUMN_COUNT = 6;
 
 // One row in the Agent Manager's action queue. Shares its read-only shape
-// (icon, name, health caption, status, assignee, progress bar) with the
+// (name, health caption, assignee, progress bar, status) with the
 // Executive's rows via AgentSummaryRow, and adds "Update" to expand a
 // second, full-width row with an inline form so a single-agent change never
 // has to go through the full Daily Sheet.
-export default function AgentQueueRow({ agent, insight, dragHandle, rowRef, rowStyle }) {
+export default function AgentQueueRow({ agent, dragHandle, rowRef, rowStyle }) {
   const navigate = useNavigate();
   const recordUpdate = useRecordUpdate();
   const showToast = useToast();
@@ -61,7 +61,6 @@ export default function AgentQueueRow({ agent, insight, dragHandle, rowRef, rowS
       <TableRow ref={rowRef} style={rowStyle} hover sx={{ '& > td': { borderBottom: expanded ? 'none' : undefined } }}>
         <AgentSummaryRow
           agent={agent}
-          insight={insight}
           leading={dragHandle}
           onNameClick={() => navigate(`/agents/${agent.id}`)}
           trailing={

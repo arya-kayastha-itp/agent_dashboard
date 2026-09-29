@@ -5,11 +5,15 @@ export function useAgents() {
   return useQuery({ queryKey: ['agents'], queryFn: getAgents });
 }
 
+// The Teams page lists which agents each member is on, so anything that
+// changes an agent's assignees has to refresh that roster too.
 export function useCreateAgent() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: createAgent,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['agents'] }),
+    onSuccess: () => {
+      ['agents', 'teamMembers'].forEach((key) => queryClient.invalidateQueries({ queryKey: [key] }));
+    },
   });
 }
 
@@ -17,7 +21,9 @@ export function useUpdateAgent() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, payload }) => updateAgent(id, payload),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['agents'] }),
+    onSuccess: () => {
+      ['agents', 'teamMembers'].forEach((key) => queryClient.invalidateQueries({ queryKey: [key] }));
+    },
   });
 }
 
@@ -25,7 +31,15 @@ export function useDeleteAgent() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: deleteAgent,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['agents'] }),
+    // Removing an agent also removes its history, usage and alerts, so every
+    // cache derived from them is stale, not just the agent list.
+    onSuccess: (data, id) => {
+      queryClient.removeQueries({ queryKey: ['agentHistory', id] });
+      queryClient.removeQueries({ queryKey: ['agentInsights', id] });
+      ['agents', 'teamMembers', 'updates', 'alerts', 'thresholds', 'usageSummary', 'usageLogs', 'portfolioInsights', 'agentsInsightsSummary'].forEach(
+        (key) => queryClient.invalidateQueries({ queryKey: [key] }),
+      );
+    },
   });
 }
 

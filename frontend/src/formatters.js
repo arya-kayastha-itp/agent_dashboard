@@ -14,6 +14,11 @@ export function formatPercent(value, { precision = 1 } = {}) {
   return `${n.toFixed(precision)}%`;
 }
 
+// An agent's assignees as one display string, e.g. "Puja Rachchh, Sumit Mishra".
+export function formatAssignees(agent) {
+  return (agent?.assignees || []).map((assignee) => assignee.name).join(', ');
+}
+
 export function formatMinutes(minutes) {
   const n = Number(minutes);
   if (!Number.isFinite(n)) return '—';
