@@ -8,6 +8,7 @@ const AGENT_SELECT = `
   id,
   name,
   description,
+  COALESCE(marketplace_deployment, false) as marketplaceDeployment,
   eta,
   current_status as currentStatus,
   current_progress as currentProgress,
@@ -101,6 +102,7 @@ async function createAgent(data) {
     id,
     name: data.name,
     description: data.description ?? null,
+    marketplaceDeployment: data.marketplaceDeployment ?? false,
     eta: data.eta ?? null,
     currentStatus: data.status,
     currentProgress: data.progress,
@@ -113,10 +115,10 @@ async function createAgent(data) {
 
   await db.query(
     `INSERT INTO agents
-       (id, name, description, eta, current_status, current_progress,
+       (id, name, description, marketplace_deployment, eta, current_status, current_progress,
         current_status_description, last_update_at, sort_order, created_at, updated_at)
      VALUES
-       (:id, :name, :description, CAST(:eta AS DATE), :currentStatus, :currentProgress,
+       (:id, :name, :description, CAST(:marketplaceDeployment AS BOOLEAN), CAST(:eta AS DATE), :currentStatus, :currentProgress,
         :currentStatusDescription, CAST(:lastUpdateAt AS TIMESTAMP), :sortOrder,
         CAST(:createdAt AS TIMESTAMP), CAST(:updatedAt AS TIMESTAMP))`,
     agent,
@@ -165,6 +167,10 @@ async function updateAgentMetadata(id, data) {
   if (data.description !== undefined) {
     sets.push('description = :description');
     params.description = data.description;
+  }
+  if (data.marketplaceDeployment !== undefined) {
+    sets.push('marketplace_deployment = CAST(:marketplaceDeployment AS BOOLEAN)');
+    params.marketplaceDeployment = data.marketplaceDeployment;
   }
   if (data.eta !== undefined) {
     sets.push('eta = CAST(:eta AS DATE)');

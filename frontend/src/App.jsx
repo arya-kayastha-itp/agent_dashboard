@@ -10,6 +10,7 @@ import AgentDetailPage from './pages/AgentDetailPage';
 import AllAgentsPage from './pages/AllAgentsPage';
 import DailyUpdateSheetPage from './pages/DailyUpdateSheetPage';
 import HomePage from './pages/HomePage';
+import MarketplacePage from './pages/MarketplacePage';
 import PersonaLoginPage from './pages/PersonaLoginPage';
 import PortfolioInsightsPage from './pages/PortfolioInsightsPage';
 import PricingAdminPage from './pages/PricingAdminPage';
@@ -53,6 +54,7 @@ export default function App({ onToggleTheme, themeMode }) {
                     <Routes>
                       <Route path="/" element={<HomePage />} />
                       <Route path="/agents" element={<AllAgentsPage />} />
+                      <Route path="/marketplace" element={restricted('/marketplace', <MarketplacePage />)} />
                       <Route path="/insights" element={restricted('/insights', <PortfolioInsightsPage />)} />
                       <Route path="/daily-sheet" element={restricted('/daily-sheet', <DailyUpdateSheetPage />)} />
                       <Route path="/teams" element={restricted('/teams', <TeamsPage />)} />

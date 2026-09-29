@@ -9,8 +9,11 @@ import AgentQueueRow from './AgentQueueRow';
 // link, "Update" toggle, inline form controls). The row itself is a <tr>,
 // so the sortable ref/style go directly onto it rather than onto a wrapper
 // element — a <div> around a <tr> would get hoisted out of the table.
-export default function SortableAgentRow({ agent }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: agent.id });
+export default function SortableAgentRow({ agent, dragDisabled = false }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: agent.id,
+    disabled: dragDisabled,
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -30,6 +33,7 @@ export default function SortableAgentRow({ agent }) {
           size="small"
           {...attributes}
           {...listeners}
+          disabled={dragDisabled}
           aria-label="Drag to reorder"
           sx={{ cursor: 'grab', touchAction: 'none', color: 'text.disabled' }}
         >

@@ -6,12 +6,14 @@ import { Controller, useForm } from 'react-hook-form';
 import { STATUS_VALUES } from '../constants';
 import { FIELD_LABELS } from '../labels';
 import AssigneeSelect from './AssigneeSelect';
+import MarketplaceToggle from './MarketplaceToggle';
 import ProgressSlider from './ProgressSlider';
 
 const DEFAULT_VALUES = {
   name: '',
   description: '',
   assigneeIds: [],
+  marketplaceDeployment: false,
   status: 'Not Started',
   eta: '',
   progress: 0,
@@ -44,6 +46,12 @@ export default function AgentForm({ formId, onSubmit }) {
           name="assigneeIds"
           control={control}
           render={({ field }) => <AssigneeSelect value={field.value} onChange={field.onChange} />}
+        />
+
+        <Controller
+          name="marketplaceDeployment"
+          control={control}
+          render={({ field }) => <MarketplaceToggle value={field.value} onChange={field.onChange} />}
         />
 
         <Stack direction="row" spacing={2}>

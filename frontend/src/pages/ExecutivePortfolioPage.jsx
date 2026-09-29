@@ -23,14 +23,21 @@ import { usePageTitle } from '../hooks/usePageTitle';
 // row shape and the same click-through-to-detail behavior the Agent
 // Manager's queue uses — one consistent list UI across personas, the only
 // difference being AgentDetailPage hides the edit form for this persona.
-export default function ExecutivePortfolioPage() {
-  usePageTitle('Home');
+//
+// The Marketplace page reuses this exact view with `marketplaceOnly`, which
+// narrows it to agents tagged for Marketplace Deployment.
+export default function ExecutivePortfolioPage({ marketplaceOnly = false }) {
+  usePageTitle(marketplaceOnly ? 'Marketplace' : 'Home');
   const navigate = useNavigate();
   const { data: agents, isLoading, isError, refetch } = useAgents();
   const [healthFilter, setHealthFilter] = useState(null);
 
-  const summary = useMemo(() => summarizeAgents(agents || []), [agents]);
-  const sorted = useMemo(() => sortBySeverity(agents || []), [agents]);
+  const scoped = useMemo(
+    () => (marketplaceOnly ? (agents || []).filter((agent) => agent.marketplaceDeployment) : agents || []),
+    [agents, marketplaceOnly],
+  );
+  const summary = useMemo(() => summarizeAgents(scoped), [scoped]);
+  const sorted = useMemo(() => sortBySeverity(scoped), [scoped]);
   const visible = useMemo(() => {
     if (!healthFilter) return sorted;
     return sorted.filter((agent) => computeAgentHealth(agent).level === healthFilter);
@@ -40,6 +47,12 @@ export default function ExecutivePortfolioPage() {
 
   return (
     <Box>
+      {marketplaceOnly && (
+        <Typography variant="h4" sx={{ mb: 2 }}>
+          Marketplace Deployment
+        </Typography>
+      )}
+
       {isLoading && (
         <Stack direction="row" spacing={1.5} alignItems="center">
           <CircularProgress size={20} />
@@ -48,11 +61,15 @@ export default function ExecutivePortfolioPage() {
       )}
       {isError && <ErrorAlert onRetry={refetch}>Failed to load agents.</ErrorAlert>}
 
-      {agents && agents.length > 0 && (
+      {marketplaceOnly && agents && agents.length > 0 && scoped.length === 0 && (
+        <Alert severity="info">No agents are tagged for Marketplace Deployment yet.</Alert>
+      )}
+
+      {scoped.length > 0 && (
         <>
           <DashboardSummaryBanner summary={summary} activeFilter={healthFilter} onFilterChange={setHealthFilter} />
 
-          <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 'calc(100vh - 150px)' }}>
+          <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: marketplaceOnly ? 'calc(100vh - 220px)' : 'calc(100vh - 150px)' }}>
             <Table size="small" stickyHeader>
               <TableHead>
                 <TableRow>
