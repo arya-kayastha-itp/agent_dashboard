@@ -4,6 +4,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
+import AccentMark from '../components/AccentMark';
 import ErrorAlert from '../components/ErrorAlert';
 import ThresholdForm from '../components/ThresholdForm';
 import ThresholdsTable from '../components/ThresholdsTable';
@@ -16,22 +17,23 @@ export default function ThresholdsAdminPage() {
 
   return (
     <Box>
-      <Typography variant="h4" sx={{ mb: 1 }}>
-        Alert Rules
-      </Typography>
-      <Typography color="text.secondary" sx={{ mb: 3 }}>
-        Set the limits that decide when a cost or reliability alert fires — for one project, or as a
-        default that applies to all of them.
-      </Typography>
+      <Box sx={{ mb: 3.5, animation: 'g-rise 0.6s var(--g-ease) backwards' }}>
+        <AccentMark />
+        <Typography variant="h4">Alert Rules</Typography>
+        <Typography color="text.secondary" sx={{ mt: 1.25, fontWeight: 500 }}>
+          Set the limits that decide when a cost or reliability alert fires — for one project, or as a
+          default that applies to all of them.
+        </Typography>
+      </Box>
 
-      <Paper variant="outlined" sx={{ p: 3, mb: 3 }}>
+      <Paper variant="outlined" sx={{ p: 3, mb: 3, animation: 'g-rise 0.7s var(--g-ease) 0.1s backwards' }}>
         <Typography variant="h6" sx={{ mb: 2 }}>
           Add / update a rule
         </Typography>
         <ThresholdForm />
       </Paper>
 
-      <Paper variant="outlined" sx={{ p: 3 }}>
+      <Paper variant="outlined" sx={{ p: 3, animation: 'g-rise 0.7s var(--g-ease) 0.2s backwards' }}>
         <Typography variant="h6" sx={{ mb: 2 }}>
           Current rules
         </Typography>

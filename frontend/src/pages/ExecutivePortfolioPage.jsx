@@ -13,6 +13,7 @@ import Typography from '@mui/material/Typography';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { computeAgentHealth, sortBySeverity, summarizeAgents } from '../agentHealth';
+import AccentMark from '../components/AccentMark';
 import AgentSummaryRow from '../components/AgentSummaryRow';
 import DashboardSummaryBanner from '../components/DashboardSummaryBanner';
 import ErrorAlert from '../components/ErrorAlert';
@@ -48,9 +49,10 @@ export default function ExecutivePortfolioPage({ marketplaceOnly = false }) {
   return (
     <Box>
       {marketplaceOnly && (
-        <Typography variant="h4" sx={{ mb: 2 }}>
-          Marketplace Deployment
-        </Typography>
+        <Box sx={{ mb: 3.5, animation: 'g-rise 0.6s var(--g-ease) backwards' }}>
+          <AccentMark />
+          <Typography variant="h4">Marketplace Deployment</Typography>
+        </Box>
       )}
 
       {isLoading && (
@@ -69,7 +71,14 @@ export default function ExecutivePortfolioPage({ marketplaceOnly = false }) {
         <>
           <DashboardSummaryBanner summary={summary} activeFilter={healthFilter} onFilterChange={setHealthFilter} />
 
-          <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: marketplaceOnly ? 'calc(100vh - 220px)' : 'calc(100vh - 150px)' }}>
+          <TableContainer
+            component={Paper}
+            variant="outlined"
+            sx={{
+              maxHeight: marketplaceOnly ? 'max(360px, calc(100vh - 270px))' : 'max(360px, calc(100vh - 200px))',
+              animation: 'g-rise 0.7s var(--g-ease) 0.15s backwards',
+            }}
+          >
             <Table size="small" stickyHeader>
               <TableHead>
                 <TableRow>
@@ -80,12 +89,16 @@ export default function ExecutivePortfolioPage({ marketplaceOnly = false }) {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {visible.map((agent) => (
+                {visible.map((agent, index) => (
                   <TableRow
                     key={agent.id}
                     hover
                     onClick={() => navigate(`/agents/${agent.id}`)}
-                    sx={{ cursor: 'pointer' }}
+                    sx={{
+                      cursor: 'pointer',
+                      animation: 'g-rise 0.6s var(--g-ease) backwards',
+                      animationDelay: `${Math.min(index, 12) * 45 + 200}ms`,
+                    }}
                   >
                     <AgentSummaryRow agent={agent} />
                   </TableRow>

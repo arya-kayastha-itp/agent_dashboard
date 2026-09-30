@@ -47,17 +47,23 @@ export default function AgentCostTable({ agents, insightsByAgent }) {
         </TableHead>
         <TableBody>
           {sorted.map((row) => (
-            <TableRow key={row.id}>
+            <TableRow key={row.id} hover>
               <TableCell>
-                <Link component={RouterLink} to={`/agents/${row.id}`} underline="hover" color="inherit">
+                <Link
+                  component={RouterLink}
+                  to={`/agents/${row.id}`}
+                  underline="hover"
+                  color="inherit"
+                  sx={{ fontWeight: 800, textDecorationColor: 'var(--g-accent)', textDecorationThickness: 2, textUnderlineOffset: 4 }}
+                >
                   {row.name}
                 </Link>
               </TableCell>
-              <TableCell align="right">{row.calls}</TableCell>
-              <TableCell align="right">{formatCurrency(row.cost)}</TableCell>
+              <TableCell align="right" sx={{ fontFamily: 'var(--g-mono)' }}>{row.calls}</TableCell>
+              <TableCell align="right" sx={{ fontFamily: 'var(--g-mono)' }}>{formatCurrency(row.cost)}</TableCell>
               <TableCell
                 align="right"
-                sx={{ color: row.errorRate > 10 ? 'error.main' : row.errorRate > 5 ? 'warning.main' : 'text.primary', fontWeight: row.errorRate > 5 ? 700 : 400 }}
+                sx={{ fontFamily: 'var(--g-mono)', color: row.errorRate > 10 ? 'error.main' : row.errorRate > 5 ? 'warning.main' : 'text.primary', fontWeight: row.errorRate > 5 ? 700 : 400 }}
               >
                 {formatPercent(row.errorRate)}
               </TableCell>

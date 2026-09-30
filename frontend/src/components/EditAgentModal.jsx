@@ -10,6 +10,7 @@ import { useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useUpdateAgent } from '../hooks/useAgents';
 import { FIELD_LABELS } from '../labels';
+import { openNativePicker } from '../nativePicker';
 import AssigneeSelect from './AssigneeSelect';
 import MarketplaceToggle from './MarketplaceToggle';
 import { useToast } from './ToastProvider';
@@ -95,6 +96,7 @@ export default function EditAgentModal({ open, onClose, agent }) {
               type="date"
               fullWidth
               InputLabelProps={{ shrink: true }}
+              inputProps={{ onClick: openNativePicker }}
               {...register('eta')}
             />
           </Stack>

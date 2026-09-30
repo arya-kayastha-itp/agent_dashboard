@@ -48,13 +48,13 @@ export default function ThresholdsTable({ thresholds }) {
           </TableHead>
           <TableBody>
             {pageRows.map((row) => (
-              <TableRow key={row.id}>
-                <TableCell>{row.appliesTo}</TableCell>
-                <TableCell>{ALERT_TYPE_LABELS[row.alertType] || row.alertType}</TableCell>
-                <TableCell align="right">
+              <TableRow key={row.id} hover>
+                <TableCell sx={{ fontWeight: 700 }}>{row.appliesTo}</TableCell>
+                <TableCell sx={{ color: 'text.secondary', fontWeight: 600 }}>{ALERT_TYPE_LABELS[row.alertType] || row.alertType}</TableCell>
+                <TableCell align="right" sx={{ fontFamily: 'var(--g-mono)' }}>
                   {row.alertType === 'expensive_call' ? formatCurrency(row.thresholdValue) : formatPercent(row.thresholdValue, { precision: 0 })}
                 </TableCell>
-                <TableCell align="right">{row.windowMinutes ? formatMinutes(row.windowMinutes) : '—'}</TableCell>
+                <TableCell align="right" sx={{ fontFamily: 'var(--g-mono)', color: 'text.secondary' }}>{row.windowMinutes ? formatMinutes(row.windowMinutes) : '—'}</TableCell>
               </TableRow>
             ))}
           </TableBody>

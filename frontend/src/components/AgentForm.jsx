@@ -5,6 +5,7 @@ import Typography from '@mui/material/Typography';
 import { Controller, useForm } from 'react-hook-form';
 import { STATUS_VALUES } from '../constants';
 import { FIELD_LABELS } from '../labels';
+import { openNativePicker } from '../nativePicker';
 import AssigneeSelect from './AssigneeSelect';
 import MarketplaceToggle from './MarketplaceToggle';
 import ProgressSlider from './ProgressSlider';
@@ -74,12 +75,13 @@ export default function AgentForm({ formId, onSubmit }) {
             type="date"
             fullWidth
             InputLabelProps={{ shrink: true }}
+            inputProps={{ onClick: openNativePicker }}
             {...register('eta')}
           />
         </Stack>
 
         <div>
-          <Typography variant="body2" color="text.secondary" gutterBottom>
+          <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.72rem', fontWeight: 800, lineHeight: 1.4, mb: 0.75 }}>
             Progress
           </Typography>
           <Controller

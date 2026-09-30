@@ -58,7 +58,18 @@ export default function AgentQueueRow({ agent, dragHandle, rowRef, rowStyle }) {
 
   return (
     <>
-      <TableRow ref={rowRef} style={rowStyle} hover sx={{ '& > td': { borderBottom: expanded ? 'none' : undefined } }}>
+      <TableRow
+        ref={rowRef}
+        style={rowStyle}
+        hover
+        sx={{
+          '& > td': { borderBottom: expanded ? 'none' : undefined },
+          bgcolor: expanded ? 'var(--g-surface-2)' : undefined,
+          // Opacity-only entrance: a transform animation would fight the
+          // drag-and-drop transform dnd-kit sets on this row.
+          animation: 'g-fade 0.5s ease 0.2s backwards',
+        }}
+      >
         <AgentSummaryRow
           agent={agent}
           leading={dragHandle}
@@ -68,7 +79,8 @@ export default function AgentQueueRow({ agent, dragHandle, rowRef, rowStyle }) {
               size="small"
               variant="outlined"
               onClick={() => setExpanded((e) => !e)}
-              endIcon={<ExpandMoreIcon sx={{ transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />}
+              aria-expanded={expanded}
+              endIcon={<ExpandMoreIcon sx={{ transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.3s var(--g-ease)' }} />}
             >
               {expanded ? 'Close' : 'Update'}
             </Button>
@@ -78,10 +90,21 @@ export default function AgentQueueRow({ agent, dragHandle, rowRef, rowStyle }) {
 
       {expanded && (
         <TableRow>
-          <TableCell colSpan={AGENT_QUEUE_COLUMN_COUNT} sx={{ pt: 0, pb: 2, bgcolor: 'background.default' }}>
-            <Box component="form" onSubmit={handleSave} sx={{ pt: 1 }}>
-              <Stack spacing={2}>
-                <TextField select label="Status" size="small" value={status} onChange={(e) => setStatus(e.target.value)} sx={{ maxWidth: 240 }}>
+          <TableCell colSpan={AGENT_QUEUE_COLUMN_COUNT} sx={{ p: 0, bgcolor: 'var(--g-surface-2)' }}>
+            <Box
+              component="form"
+              onSubmit={handleSave}
+              sx={{
+                px: { xs: 2, md: 3 },
+                pl: { md: 9 },
+                pt: 2.5,
+                pb: 3,
+                borderTop: '1px dashed var(--g-line-2)',
+                animation: 'g-open 0.45s var(--g-ease) both',
+              }}
+            >
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '240px minmax(0, 1fr)' }, gap: 2.5 }}>
+                <TextField select label="Status" size="small" fullWidth value={status} onChange={(e) => setStatus(e.target.value)}>
                   {STATUS_VALUES.map((value) => (
                     <MenuItem key={value} value={value}>
                       {value}
@@ -90,7 +113,11 @@ export default function AgentQueueRow({ agent, dragHandle, rowRef, rowStyle }) {
                 </TextField>
 
                 <div>
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ fontSize: '0.72rem', fontWeight: 800, lineHeight: 1.4, mb: 0.75 }}
+                  >
                     Progress
                   </Typography>
                   <ProgressSlider value={progress} onChange={setProgress} size="small" />
@@ -104,16 +131,17 @@ export default function AgentQueueRow({ agent, dragHandle, rowRef, rowStyle }) {
                   minRows={2}
                   value={statusDescription}
                   onChange={(e) => setStatusDescription(e.target.value)}
+                  sx={{ gridColumn: '1 / -1' }}
                 />
+              </Box>
 
-                <Stack direction="row" spacing={1} justifyContent="flex-end">
-                  <Button size="small" onClick={handleCancel} disabled={recordUpdate.isPending}>
-                    Cancel
-                  </Button>
-                  <Button type="submit" size="small" variant="contained" disabled={recordUpdate.isPending}>
-                    {recordUpdate.isPending ? 'Saving…' : 'Save update'}
-                  </Button>
-                </Stack>
+              <Stack direction="row" spacing={1} justifyContent="flex-end" sx={{ mt: 2 }}>
+                <Button size="small" onClick={handleCancel} disabled={recordUpdate.isPending}>
+                  Cancel
+                </Button>
+                <Button type="submit" size="small" variant="contained" disabled={recordUpdate.isPending}>
+                  {recordUpdate.isPending ? 'Saving…' : 'Save update'}
+                </Button>
               </Stack>
             </Box>
           </TableCell>

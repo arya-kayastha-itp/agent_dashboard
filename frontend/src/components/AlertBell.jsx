@@ -1,5 +1,6 @@
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import Badge from '@mui/material/Badge';
+import Box from '@mui/material/Box';
 import IconButton from '@mui/material/IconButton';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
@@ -25,13 +26,18 @@ export default function AlertBell() {
 
   return (
     <>
-      <IconButton color="inherit" onClick={(e) => setAnchorEl(e.currentTarget)} aria-label="Open alerts">
+      <IconButton
+        color="inherit"
+        onClick={(e) => setAnchorEl(e.currentTarget)}
+        aria-label="Open alerts"
+        sx={{ color: 'text.secondary', '&:hover': { color: 'text.primary', bgcolor: 'var(--g-surface-2)' } }}
+      >
         <Badge badgeContent={count} color={badgeColor}>
-          <NotificationsIcon />
+          <NotificationsIcon fontSize="small" />
         </Badge>
       </IconButton>
 
-      <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)} PaperProps={{ sx: { width: 340 } }}>
+      <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)} PaperProps={{ sx: { width: 330 } }}>
         {count === 0 && (
           <MenuItem disabled>
             <Typography variant="body2" color="text.secondary">
@@ -40,25 +46,29 @@ export default function AlertBell() {
           </MenuItem>
         )}
 
-        {preview.map((alert) => (
-          <MenuItem
-            key={alert.id}
-            onClick={() => {
-              setAnchorEl(null);
-              navigate('/');
-            }}
-            sx={{ whiteSpace: 'normal' }}
-          >
-            <div>
-              <Typography variant="body2" fontWeight={600}>
-                {ALERT_TYPE_LABELS[alert.alertType] || alert.alertType} — {alert.agentName}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {getAlertHeadline(alert)}
-              </Typography>
-            </div>
-          </MenuItem>
-        ))}
+        {preview.map((alert) => {
+          const { Icon, color } = HEALTH_LEVEL_META[getAlertHealthLevel(alert)];
+          return (
+            <MenuItem
+              key={alert.id}
+              onClick={() => {
+                setAnchorEl(null);
+                navigate('/');
+              }}
+              sx={{ whiteSpace: 'normal', alignItems: 'flex-start', gap: 1.5, py: 1.5 }}
+            >
+              <Icon fontSize="small" color={color} sx={{ mt: 0.25, flexShrink: 0 }} />
+              <Box>
+                <Typography variant="body2" fontWeight={800}>
+                  {ALERT_TYPE_LABELS[alert.alertType] || alert.alertType} — {alert.agentName}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, lineHeight: 1.45 }}>
+                  {getAlertHeadline(alert)}
+                </Typography>
+              </Box>
+            </MenuItem>
+          );
+        })}
 
         {count > 0 && (
           <MenuItem
@@ -66,8 +76,9 @@ export default function AlertBell() {
               setAnchorEl(null);
               navigate('/');
             }}
+            sx={{ justifyContent: 'center', mt: 0.5, borderTop: 1, borderColor: 'divider', borderRadius: '0 0 10px 10px' }}
           >
-            <Typography variant="body2" color="primary">
+            <Typography variant="body2" fontWeight={800} sx={{ color: 'var(--g-accent-text)' }}>
               View all alerts
             </Typography>
           </MenuItem>

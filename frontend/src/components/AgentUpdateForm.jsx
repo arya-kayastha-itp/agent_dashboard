@@ -35,8 +35,8 @@ export default function AgentUpdateForm({ agent }) {
   };
 
   return (
-    <Paper variant="outlined" sx={{ p: 3, mb: 3 }}>
-      <Typography variant="h6" sx={{ mb: 2 }}>
+    <Paper variant="outlined" sx={{ p: 3, animation: 'g-rise 0.7s var(--g-ease) 0.15s backwards' }}>
+      <Typography variant="h6" sx={{ mb: 2.5 }}>
         Log Today&apos;s Update
       </Typography>
 
@@ -53,7 +53,7 @@ export default function AgentUpdateForm({ agent }) {
           </Stack>
 
           <div>
-            <Typography variant="body2" color="text.secondary" gutterBottom>
+            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.72rem', fontWeight: 800, lineHeight: 1.4, mb: 0.75 }}>
               Progress
             </Typography>
             <ProgressSlider value={progress} onChange={setProgress} />

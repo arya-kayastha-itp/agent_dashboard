@@ -38,7 +38,13 @@ export default function RemoveTeamMemberButton({ member }) {
         </IconButton>
       </Tooltip>
 
-      <Dialog open={open} onClose={deleteMember.isPending ? undefined : () => setOpen(false)} fullWidth maxWidth="xs">
+      <Dialog
+        open={open}
+        onClose={deleteMember.isPending ? undefined : () => setOpen(false)}
+        fullWidth
+        maxWidth="xs"
+        PaperProps={{ sx: { '&::before': { bgcolor: 'error.main' } } }}
+      >
         <DialogTitle>Remove {member.name}?</DialogTitle>
         <DialogContent>
           <DialogContentText>

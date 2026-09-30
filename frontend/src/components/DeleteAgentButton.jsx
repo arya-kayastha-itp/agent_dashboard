@@ -44,7 +44,13 @@ export default function DeleteAgentButton({ agent, onDeleted, sx }) {
         </IconButton>
       </Tooltip>
 
-      <Dialog open={open} onClose={deleteAgent.isPending ? undefined : () => setOpen(false)} fullWidth maxWidth="xs">
+      <Dialog
+        open={open}
+        onClose={deleteAgent.isPending ? undefined : () => setOpen(false)}
+        fullWidth
+        maxWidth="xs"
+        PaperProps={{ sx: { '&::before': { bgcolor: 'error.main' } } }}
+      >
         <DialogTitle>Delete this agent?</DialogTitle>
         <DialogContent>
           <DialogContentText>

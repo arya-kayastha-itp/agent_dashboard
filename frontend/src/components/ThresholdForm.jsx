@@ -106,7 +106,8 @@ export default function ThresholdForm() {
           </Stack>
         )}
 
-        <Button type="submit" variant="contained" disabled={upsertThreshold.isPending}>
+        {/* Offset by the field-label height so the button lines up with the inputs. */}
+        <Button type="submit" variant="contained" disabled={upsertThreshold.isPending} sx={{ mt: '26px' }}>
           {upsertThreshold.isPending ? 'Saving…' : 'Save Rule'}
         </Button>
       </Stack>
