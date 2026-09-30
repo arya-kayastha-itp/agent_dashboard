@@ -4,6 +4,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
+import AccentMark from '../components/AccentMark';
 import AgentCostTable from '../components/AgentCostTable';
 import AlertsList from '../components/AlertsList';
 import ErrorAlert from '../components/ErrorAlert';
@@ -14,6 +15,22 @@ import { useAgents } from '../hooks/useAgents';
 import { useAgentsInsightsSummary } from '../hooks/useInsights';
 import { usePageTitle } from '../hooks/usePageTitle';
 import { useUsageSummary } from '../hooks/useUsage';
+
+function Total({ label, value, info }) {
+  return (
+    <Box sx={{ px: 2.25, py: 1.75, borderRadius: '13px', bgcolor: 'var(--g-surface-2)', border: 1, borderColor: 'divider' }}>
+      <Stack direction="row" spacing={0.25} alignItems="center" sx={{ minHeight: 20 }}>
+        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 800, fontSize: '0.75rem' }}>
+          {label}
+        </Typography>
+        {info}
+      </Stack>
+      <Typography sx={{ mt: 0.75, fontFamily: 'var(--g-display)', fontWeight: 600, fontSize: '1.4rem', lineHeight: 1.1, letterSpacing: '-0.03em' }}>
+        {value}
+      </Typography>
+    </Box>
+  );
+}
 
 // FinOps's Home: alerts triaged first (the thing that actually needs a
 // decision today), the cost/reliability trend second, and a per-agent
@@ -32,22 +49,20 @@ export default function FinOpsHomePage() {
 
   return (
     <Box>
-      <Typography variant="h4" sx={{ mb: 1 }}>
-        Cost &amp; Reliability
-      </Typography>
-      <Typography color="text.secondary" sx={{ mb: 2 }}>
-        How much your AI agents are costing, and how often their calls are failing.
-      </Typography>
-
-      <Typography variant="h6" sx={{ mb: 1 }}>
-        Alerts
-      </Typography>
-      <Box sx={{ mb: 3 }}>
-        <AlertsList />
+      <Box sx={{ mb: 3.5, animation: 'g-rise 0.6s var(--g-ease) backwards' }}>
+        <AccentMark />
+        <Typography variant="h4">Cost &amp; Reliability</Typography>
+        <Typography color="text.secondary" sx={{ mt: 1.25, fontWeight: 500 }}>
+          How much your AI agents are costing, and how often their calls are failing.
+        </Typography>
       </Box>
 
-      <Paper variant="outlined" sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" sx={{ mb: 2 }}>
+      <Box sx={{ mb: 3 }}>
+        <AlertsList title="Alerts" />
+      </Box>
+
+      <Paper variant="outlined" sx={{ p: 3, mb: 3, animation: 'g-rise 0.7s var(--g-ease) 0.15s backwards' }}>
+        <Typography variant="h6" sx={{ mb: 2.5 }}>
           Usage &amp; cost (last 14 days)
         </Typography>
 
@@ -62,35 +77,21 @@ export default function FinOpsHomePage() {
 
         {summary && summary.length > 0 && (
           <>
-            <Stack direction="row" spacing={4} sx={{ mb: 2 }}>
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  Total cost
-                </Typography>
-                <Typography variant="h6">{formatCurrency(totals.cost)}</Typography>
-              </Box>
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  Total calls
-                </Typography>
-                <Typography variant="h6">{totals.calls}</Typography>
-              </Box>
-              <Box>
-                <Stack direction="row" spacing={0.25} alignItems="center">
-                  <Typography variant="caption" color="text.secondary">
-                    Failed calls
-                  </Typography>
-                  <InfoTooltip title="Calls where something went wrong — either the AI service failed, or the request sent to it was invalid." />
-                </Stack>
-                <Typography variant="h6">{totals.errors}</Typography>
-              </Box>
-            </Stack>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, minmax(0, 1fr))' }, gap: 1.5, mb: 3 }}>
+              <Total label="Total cost" value={formatCurrency(totals.cost)} />
+              <Total label="Total calls" value={totals.calls} />
+              <Total
+                label="Failed calls"
+                value={totals.errors}
+                info={<InfoTooltip title="Calls where something went wrong — either the AI service failed, or the request sent to it was invalid." />}
+              />
+            </Box>
             <UsageCostChart summary={summary} />
           </>
         )}
       </Paper>
 
-      <Paper variant="outlined" sx={{ p: 3 }}>
+      <Paper variant="outlined" sx={{ p: 3, animation: 'g-rise 0.7s var(--g-ease) 0.25s backwards' }}>
         <Typography variant="h6" sx={{ mb: 2 }}>
           Per-agent breakdown
         </Typography>

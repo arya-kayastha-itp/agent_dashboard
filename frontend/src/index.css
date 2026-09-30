@@ -1,3 +1,94 @@
 body {
   margin: 0;
 }
+
+/* Ambient light behind the content — a soft orange glow up top plus a faint
+   dot grid that fades out. Both sit under #root and never take pointer events.
+   The --g-* variables are set per theme mode in theme.js (MuiCssBaseline). */
+body::before {
+  content: '';
+  position: fixed;
+  z-index: 0;
+  pointer-events: none;
+  left: 12vw;
+  right: -6vw;
+  top: -160px;
+  height: 600px;
+  background:
+    radial-gradient(520px 240px at 30% 40%, var(--g-glow-a), transparent 70%),
+    radial-gradient(680px 300px at 72% 30%, var(--g-glow-b), transparent 70%);
+  filter: blur(6px);
+  animation: g-drift 16s ease-in-out infinite alternate;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: radial-gradient(var(--g-dots) 1px, transparent 1.6px);
+  background-size: 22px 22px;
+  -webkit-mask-image: linear-gradient(to bottom, #000 0, transparent 620px);
+  mask-image: linear-gradient(to bottom, #000 0, transparent 620px);
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--g-line-2) transparent;
+}
+
+/* ---------- Motion ---------- */
+@keyframes g-rise {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes g-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes g-pop {
+  from { opacity: 0; transform: translateY(12px) scale(0.975); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes g-open {
+  from { opacity: 0; clip-path: inset(0 0 100% 0); }
+  to { opacity: 1; clip-path: inset(0 0 0 0); }
+}
+@keyframes g-drift {
+  from { transform: translate3d(-40px, 0, 0) scale(1); }
+  to { transform: translate3d(50px, 24px, 0) scale(1.08); }
+}
+@keyframes g-orb {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(70px, -50px) scale(1.12); }
+}
+/* Determinate progress bars fill in from empty on mount; the inline
+   transform MUI sets is the end state, so value changes still animate
+   through MUI's own transition. */
+@keyframes g-bar-in {
+  from { transform: translateX(-100%); }
+}
+@keyframes g-ring {
+  from { stroke-dashoffset: 100; }
+}
+@keyframes g-pulse {
+  0% { box-shadow: 0 0 0 0 currentColor; }
+  70% { box-shadow: 0 0 0 6px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

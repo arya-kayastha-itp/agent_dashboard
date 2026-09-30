@@ -17,6 +17,7 @@ import { useMemo, useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import { AGENT_QUEUE_COLUMN_COUNT } from '../components/AgentQueueRow';
 import SortableAgentRow from '../components/SortableAgentRow';
+import AccentMark from '../components/AccentMark';
 import DashboardSummaryBanner from '../components/DashboardSummaryBanner';
 import ErrorAlert from '../components/ErrorAlert';
 import { computeAgentHealth, sortBySeverity, summarizeAgents } from '../agentHealth';
@@ -65,26 +66,55 @@ export default function AgentManagerHomePage({ marketplaceOnly = false }) {
 
   return (
     <Box>
-      <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2} sx={{ mb: 2 }}>
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        justifyContent="space-between"
+        alignItems={{ xs: 'flex-start', sm: 'flex-end' }}
+        spacing={2}
+        sx={{ mb: 3.5, animation: 'g-rise 0.6s var(--g-ease) backwards' }}
+      >
         <Box>
+          <AccentMark />
           <Typography variant="h4">{marketplaceOnly ? 'Marketplace Deployment' : 'Home'}</Typography>
-          <Typography color="text.secondary" sx={{ mt: 0.5 }}>
-            {agents
-              ? flaggedCount === 0
-                ? 'Everything is on track — nothing needs you today.'
-                : `${flaggedCount} of ${scoped.length} projects need you today.`
-              : ' '}
+          <Typography color="text.secondary" sx={{ mt: 1.25, fontWeight: 500 }}>
+            {agents ? (
+              flaggedCount === 0 ? (
+                'Everything is on track — nothing needs you today.'
+              ) : (
+                <>
+                  <Box component="b" sx={{ color: 'text.primary', fontWeight: 800 }}>
+                    {`${flaggedCount} of ${scoped.length} projects`}
+                  </Box>
+                  {' need you today.'}
+                </>
+              )
+            ) : (
+              ' '
+            )}
           </Typography>
         </Box>
         {!marketplaceOnly && (
-          <Stack alignItems="flex-end" spacing={0.5}>
+          <Stack alignItems={{ xs: 'flex-start', sm: 'flex-end' }} spacing={1.25}>
             <Button component={RouterLink} to="/daily-sheet" variant="outlined">
               Open Daily Update Sheet →
             </Button>
             {todayRows && (
-              <Typography variant="caption" color="text.secondary">
-                {carriedOverCount === 0 ? "Today's sheet: fully submitted" : "Today's sheet: not yet submitted"}
-              </Typography>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Box
+                  aria-hidden="true"
+                  sx={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    color: carriedOverCount === 0 ? 'success.main' : 'warning.main',
+                    bgcolor: 'currentColor',
+                    animation: carriedOverCount === 0 ? 'none' : 'g-pulse 2s ease-out infinite',
+                  }}
+                />
+                <Typography variant="caption" color="text.secondary">
+                  {carriedOverCount === 0 ? "Today's sheet: fully submitted" : "Today's sheet: not yet submitted"}
+                </Typography>
+              </Stack>
             )}
           </Stack>
         )}
@@ -113,7 +143,11 @@ export default function AgentManagerHomePage({ marketplaceOnly = false }) {
           <DashboardSummaryBanner summary={summary} activeFilter={healthFilter} onFilterChange={setHealthFilter} />
 
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 'calc(100vh - 220px)' }}>
+            <TableContainer
+              component={Paper}
+              variant="outlined"
+              sx={{ maxHeight: 'max(400px, calc(100vh - 320px))', animation: 'g-rise 0.7s var(--g-ease) 0.15s backwards' }}
+            >
               <Table size="small" stickyHeader>
                 <TableHead>
                   <TableRow>

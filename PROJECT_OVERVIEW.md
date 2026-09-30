@@ -21,7 +21,7 @@ It's an **npm workspaces monorepo** with two workspaces: `backend` and `frontend
 ### Frontend (`frontend/`)
 - **React 19.2.8** + **Vite 8.2.2** (plain SPA, no Next.js/file-based routing)
 - **React Router DOM 7.0.2** — single route table in `App.jsx`
-- **MUI (Material UI) 6.1.10** + Emotion — component library and styling, custom theme (indigo primary `#4F46E5`, Inter font, rounded corners)
+- **MUI (Material UI) 6.1.10** + Emotion — component library and styling, custom "Garage Night · Solid Accent" theme in `theme.js` (single orange accent `#FF8A3D` from the AI Garage mark, dark-first with a light variant; Unbounded / Manrope / JetBrains Mono via `@fontsource`; shared `--g-*` CSS variables and entrance animations in `index.css`)
 - **TanStack React Query 5.62.7** — all server state/data-fetching/caching
 - **Axios 1.7.9** — HTTP client
 - **react-hook-form 7.54.1** — forms

@@ -3,6 +3,7 @@ import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import { useForm } from 'react-hook-form';
 import { useCreatePricing } from '../hooks/usePricing';
+import { openNativePicker } from '../nativePicker';
 import { useToast } from './ToastProvider';
 
 const DEFAULT_VALUES = {
@@ -62,8 +63,16 @@ export default function AddPricingForm() {
           helperText={errors.outputPricePer1kTokens?.type === 'min' ? 'Must be 0 or more' : ' '}
           {...register('outputPricePer1kTokens', { required: true, min: 0 })}
         />
-        <TextField label="Starting from" size="small" type="datetime-local" InputLabelProps={{ shrink: true }} {...register('effectiveFrom')} />
-        <Button type="submit" variant="contained" disabled={createPricing.isPending}>
+        <TextField
+          label="Starting from"
+          size="small"
+          type="datetime-local"
+          InputLabelProps={{ shrink: true }}
+          inputProps={{ onClick: openNativePicker }}
+          {...register('effectiveFrom')}
+        />
+        {/* Offset by the field-label height so the button lines up with the inputs. */}
+        <Button type="submit" variant="contained" disabled={createPricing.isPending} sx={{ mt: '26px' }}>
           {createPricing.isPending ? 'Adding…' : 'Add Price'}
         </Button>
       </Stack>

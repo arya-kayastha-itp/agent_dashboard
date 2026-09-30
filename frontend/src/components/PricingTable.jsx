@@ -48,12 +48,12 @@ export default function PricingTable({ pricing }) {
           </TableHead>
           <TableBody>
             {pageRows.map((row) => (
-              <TableRow key={row.id}>
-                <TableCell>{row.model}</TableCell>
-                <TableCell align="right">{formatCurrency(row.inputPricePer1kTokens, { precision: 4 })}</TableCell>
-                <TableCell align="right">{formatCurrency(row.outputPricePer1kTokens, { precision: 4 })}</TableCell>
-                <TableCell>{format(new Date(row.effectiveFrom), 'PPp')}</TableCell>
-                <TableCell>{row.createdBy || '—'}</TableCell>
+              <TableRow key={row.id} hover>
+                <TableCell sx={{ fontFamily: 'var(--g-mono)', fontWeight: 600 }}>{row.model}</TableCell>
+                <TableCell align="right" sx={{ fontFamily: 'var(--g-mono)' }}>{formatCurrency(row.inputPricePer1kTokens, { precision: 4 })}</TableCell>
+                <TableCell align="right" sx={{ fontFamily: 'var(--g-mono)' }}>{formatCurrency(row.outputPricePer1kTokens, { precision: 4 })}</TableCell>
+                <TableCell sx={{ fontFamily: 'var(--g-mono)', color: 'text.secondary' }}>{format(new Date(row.effectiveFrom), 'PPp')}</TableCell>
+                <TableCell sx={{ color: 'text.secondary' }}>{row.createdBy || '—'}</TableCell>
               </TableRow>
             ))}
           </TableBody>

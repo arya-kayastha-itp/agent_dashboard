@@ -4,6 +4,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
+import AccentMark from '../components/AccentMark';
 import ErrorAlert from '../components/ErrorAlert';
 import TeamMembersTable from '../components/TeamMembersTable';
 import { usePageTitle } from '../hooks/usePageTitle';
@@ -15,15 +16,16 @@ export default function TeamsPage() {
 
   return (
     <Box>
-      <Typography variant="h4" sx={{ mb: 1 }}>
-        Teams
-      </Typography>
-      <Typography color="text.secondary" sx={{ mb: 3 }}>
-        Agents can only be assigned to people on this list — use Add Member to add someone, then pick them when you add or edit
-        an agent.
-      </Typography>
+      <Box sx={{ mb: 3.5, animation: 'g-rise 0.6s var(--g-ease) backwards' }}>
+        <AccentMark />
+        <Typography variant="h4">Teams</Typography>
+        <Typography color="text.secondary" sx={{ mt: 1.25, fontWeight: 500, maxWidth: 760 }}>
+          Agents can only be assigned to people on this list — use Add Member to add someone, then pick them when you add or edit
+          an agent.
+        </Typography>
+      </Box>
 
-      <Paper variant="outlined" sx={{ p: 3 }}>
+      <Paper variant="outlined" sx={{ p: 3, animation: 'g-rise 0.7s var(--g-ease) 0.15s backwards' }}>
         <Typography variant="h6" sx={{ mb: 2 }}>
           Team members{members ? ` (${members.length})` : ''}
         </Typography>

@@ -11,7 +11,7 @@ import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
 import PriceChangeIcon from '@mui/icons-material/PriceChange';
 import StorefrontIcon from '@mui/icons-material/Storefront';
 import Box from '@mui/material/Box';
-import Chip from '@mui/material/Chip';
+import ButtonBase from '@mui/material/ButtonBase';
 import Divider from '@mui/material/Divider';
 import Drawer from '@mui/material/Drawer';
 import IconButton from '@mui/material/IconButton';
@@ -21,9 +21,10 @@ import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import Stack from '@mui/material/Stack';
 import Tooltip from '@mui/material/Tooltip';
-import { useTheme } from '@mui/material/styles';
+import Typography from '@mui/material/Typography';
+import { alpha, useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { PERSONA_LABELS } from '../labels';
 import { NAV_ITEMS, SHOW_ALERT_BELL } from '../persona/navConfig';
@@ -31,8 +32,8 @@ import { usePersona } from '../persona/PersonaContext';
 import AiGarageLogo from './AiGarageLogo';
 import AlertBell from './AlertBell';
 
-const EXPANDED_WIDTH = 232;
-const COLLAPSED_WIDTH = 68;
+const EXPANDED_WIDTH = 224;
+const COLLAPSED_WIDTH = 66;
 const COLLAPSE_KEY = 'agent-dashboard.sidebarCollapsed';
 
 const NAV_ICONS = {
@@ -60,6 +61,18 @@ function writeCollapsed(value) {
     // localStorage unavailable — collapse state just won't persist
   }
 }
+
+const sectionLabelSx = {
+  px: 1.5,
+  pt: 2,
+  pb: 1,
+  fontFamily: 'var(--g-mono)',
+  fontSize: '0.6rem',
+  fontWeight: 600,
+  letterSpacing: '0.2em',
+  textTransform: 'uppercase',
+  color: 'text.disabled',
+};
 
 // Everything that used to live in the top AppBar (brand mark, nav, theme
 // toggle, alerts, persona switch) now lives here instead, so the top of the
@@ -89,80 +102,208 @@ export default function Sidebar({ onToggleTheme, themeMode }) {
   const items = NAV_ITEMS.filter((item) => item.visibleTo.includes(persona));
   const showRail = collapsed && !isNarrow;
   const width = showRail ? COLLAPSED_WIDTH : EXPANDED_WIDTH;
+  const personaLabel = PERSONA_LABELS[persona];
+  const accent = theme.palette.primary.main;
 
   const navList = (
-    <List sx={{ px: 1, py: 1 }}>
-      {items.map((item) => {
+    <List sx={{ px: 1.5, py: 1.5 }}>
+      {items.map((item, index) => {
         const Icon = NAV_ICONS[item.path] || HomeIcon;
         const isActive = location.pathname === item.path;
+        // Pricing and Alert Rules are flagged `configure` in navConfig —
+        // occasional setup tasks, so they get their own labelled group.
+        const startsConfigureGroup = item.configure && !items[index - 1]?.configure;
         const button = (
           <ListItemButton
-            key={item.path}
             component={Link}
             to={item.path}
             selected={isActive}
             aria-current={isActive ? 'page' : undefined}
             onClick={() => setMobileOpen(false)}
             sx={{
-              borderRadius: 2,
+              position: 'relative',
+              minHeight: 38,
+              borderRadius: '10px',
               mb: 0.5,
               justifyContent: showRail ? 'center' : 'flex-start',
-              px: showRail ? 1.5 : 2,
+              px: 1.5,
+              color: 'text.secondary',
+              '&:hover': { bgcolor: 'var(--g-surface-2)', color: 'text.primary' },
+              '&.Mui-selected': {
+                bgcolor: alpha(accent, 0.12),
+                color: 'text.primary',
+                '&:hover': { bgcolor: alpha(accent, 0.16) },
+                '&::before': {
+                  content: '""',
+                  position: 'absolute',
+                  left: -10.5,
+                  top: 9,
+                  bottom: 9,
+                  width: 3,
+                  borderRadius: '0 3px 3px 0',
+                  bgcolor: 'primary.main',
+                  boxShadow: `0 0 12px ${alpha(accent, 0.65)}`,
+                },
+              },
             }}
           >
-            <ListItemIcon sx={{ minWidth: showRail ? 0 : 40, justifyContent: 'center', color: isActive ? 'primary.main' : 'inherit' }}>
-              <Icon fontSize="small" />
+            <ListItemIcon
+              sx={{
+                minWidth: showRail ? 0 : 32,
+                justifyContent: 'center',
+                color: isActive ? 'var(--g-accent-text)' : 'inherit',
+              }}
+            >
+              <Icon sx={{ fontSize: 18 }} />
             </ListItemIcon>
-            {!showRail && <ListItemText primary={item.label} primaryTypographyProps={{ fontWeight: isActive ? 600 : 400 }} />}
+            {!showRail && (
+              <ListItemText
+                primary={item.label}
+                primaryTypographyProps={{ fontSize: '0.8125rem', fontWeight: isActive ? 800 : 600 }}
+              />
+            )}
           </ListItemButton>
         );
-        return showRail ? (
-          <Tooltip key={item.path} title={item.label} placement="right">
-            {button}
-          </Tooltip>
-        ) : (
-          button
+        return (
+          <Fragment key={item.path}>
+            {startsConfigureGroup &&
+              (showRail ? (
+                <Divider sx={{ my: 1.5, mx: 1 }} />
+              ) : (
+                <Typography component="div" sx={sectionLabelSx}>
+                  Configure
+                </Typography>
+              ))}
+            {showRail ? (
+              <Tooltip title={item.label} placement="right">
+                {button}
+              </Tooltip>
+            ) : (
+              button
+            )}
+          </Fragment>
         );
       })}
     </List>
   );
 
+  const themeButton = (mode, label, Icon) => {
+    const active = themeMode === mode;
+    return (
+      <Tooltip title={label}>
+        <IconButton
+          size="small"
+          aria-label={label}
+          aria-pressed={active}
+          onClick={active ? undefined : onToggleTheme}
+          sx={{
+            width: 30,
+            height: 26,
+            borderRadius: '8px',
+            color: active ? 'text.primary' : 'text.disabled',
+            bgcolor: active ? 'var(--g-surface-3)' : 'transparent',
+            boxShadow: active ? '0 4px 10px -6px rgba(0, 0, 0, 0.6)' : 'none',
+            '&:hover': { bgcolor: active ? 'var(--g-surface-3)' : 'var(--g-surface-2)', color: 'text.primary' },
+          }}
+        >
+          <Icon sx={{ fontSize: 15 }} />
+        </IconButton>
+      </Tooltip>
+    );
+  };
+
   const footer = (
-    <Box sx={{ p: 1.5 }}>
+    <Box sx={{ p: 1.5, pt: 1 }}>
       {!isNarrow && (
         <Box sx={{ display: 'flex', justifyContent: showRail ? 'center' : 'flex-end', mb: 1 }}>
           <Tooltip title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} placement="right">
-            <IconButton size="small" onClick={toggleCollapsed} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
+            <IconButton
+              size="small"
+              onClick={toggleCollapsed}
+              aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              sx={{ color: 'text.disabled', '&:hover': { color: 'text.primary', bgcolor: 'var(--g-surface-2)' } }}
+            >
               {collapsed ? <ChevronRightIcon fontSize="small" /> : <ChevronLeftIcon fontSize="small" />}
             </IconButton>
           </Tooltip>
         </Box>
       )}
       <Divider sx={{ mb: 1.5 }} />
-      <Stack direction={showRail ? 'column' : 'row'} spacing={1} alignItems="center" justifyContent="space-between">
-        <Stack direction={showRail ? 'column' : 'row'} spacing={0.5} alignItems="center">
-          <Tooltip title={themeMode === 'light' ? 'Dark mode' : 'Light mode'}>
-            <IconButton onClick={onToggleTheme} size="small">
-              {themeMode === 'light' ? <DarkModeIcon fontSize="small" /> : <LightModeIcon fontSize="small" />}
-            </IconButton>
-          </Tooltip>
-          {SHOW_ALERT_BELL.includes(persona) && <AlertBell />}
+      <Stack direction={showRail ? 'column' : 'row'} spacing={1} alignItems="center" sx={{ mb: 1.5 }}>
+        <Stack
+          direction={showRail ? 'column' : 'row'}
+          role="group"
+          aria-label="Theme"
+          spacing={0.25}
+          sx={{ p: '3px', borderRadius: '12px', bgcolor: 'var(--g-field)', border: 1, borderColor: 'divider' }}
+        >
+          {themeButton('dark', 'Dark mode', DarkModeIcon)}
+          {themeButton('light', 'Light mode', LightModeIcon)}
         </Stack>
-        <Tooltip title={showRail ? 'Switch persona' : ''}>
-          <Chip
-            label={showRail ? PERSONA_LABELS[persona]?.slice(0, 2).toUpperCase() : `${PERSONA_LABELS[persona]} · Switch`}
-            onClick={handleSwitchPersona}
-            variant="outlined"
-            size="small"
-          />
-        </Tooltip>
+        {SHOW_ALERT_BELL.includes(persona) && <AlertBell />}
       </Stack>
+      <Tooltip title={showRail ? 'Switch persona' : ''} placement="right">
+        <ButtonBase
+          onClick={handleSwitchPersona}
+          aria-label={`${personaLabel} · Switch`}
+          sx={{
+            width: '100%',
+            height: 38,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: showRail ? 'center' : 'space-between',
+            gap: 1,
+            px: showRail ? 0 : 1,
+            pr: showRail ? 0 : 1.75,
+            borderRadius: '12px',
+            border: 1,
+            borderColor: 'var(--g-line-2)',
+            bgcolor: 'var(--g-surface-2)',
+            color: 'text.primary',
+            transition: 'border-color 0.2s ease, background-color 0.2s ease',
+            '&:hover': { borderColor: alpha(accent, 0.55), bgcolor: 'var(--g-surface-3)' },
+            '&.Mui-focusVisible': { outline: `2px solid ${accent}`, outlineOffset: 2 },
+          }}
+        >
+          <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 1.25, minWidth: 0 }}>
+            <Box
+              component="span"
+              aria-hidden="true"
+              sx={{
+                width: 24,
+                height: 24,
+                flexShrink: 0,
+                borderRadius: '8px',
+                display: 'grid',
+                placeItems: 'center',
+                bgcolor: 'primary.main',
+                color: 'primary.contrastText',
+                fontSize: '0.58rem',
+                fontWeight: 800,
+                letterSpacing: '0.04em',
+              }}
+            >
+              {personaLabel?.slice(0, 2).toUpperCase()}
+            </Box>
+            {!showRail && (
+              <Box component="span" sx={{ fontSize: '0.75rem', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {personaLabel}
+              </Box>
+            )}
+          </Box>
+          {!showRail && (
+            <Box component="span" sx={{ fontSize: '0.69rem', fontWeight: 700, color: 'text.disabled' }}>
+              Switch
+            </Box>
+          )}
+        </ButtonBase>
+      </Tooltip>
     </Box>
   );
 
   const drawerContent = (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Stack direction="row" alignItems="center" justifyContent={showRail ? 'center' : 'flex-start'} sx={{ p: 1.5 }}>
+      <Stack direction="row" alignItems="center" justifyContent={showRail ? 'center' : 'flex-start'} sx={{ px: 1.5, pt: 2, pb: 1.75 }}>
         <Box
           component={Link}
           to="/"
@@ -175,11 +316,11 @@ export default function Sidebar({ onToggleTheme, themeMode }) {
             justifyContent: showRail ? 'center' : 'flex-start',
           }}
         >
-          <AiGarageLogo size={32} withWordmark={!showRail} fitWidth={showRail} />
+          <AiGarageLogo size={28} withWordmark={!showRail} fitWidth={showRail} />
         </Box>
       </Stack>
-      <Divider />
-      <Box sx={{ flexGrow: 1, overflowY: 'auto' }}>{navList}</Box>
+      <Divider sx={{ mx: 1.5 }} />
+      <Box sx={{ flexGrow: 1, overflowY: 'auto', overflowX: 'hidden' }}>{navList}</Box>
       {footer}
     </Box>
   );
@@ -194,16 +335,20 @@ export default function Sidebar({ onToggleTheme, themeMode }) {
             position: 'fixed',
             top: 12,
             left: 12,
+            width: 40,
+            height: 40,
             zIndex: (t) => t.zIndex.drawer + 1,
             backgroundColor: 'background.paper',
             border: 1,
-            borderColor: 'divider',
+            borderColor: 'var(--g-line-2)',
+            color: 'text.primary',
+            '&:hover': { backgroundColor: 'var(--g-surface-2)' },
           }}
         >
           <MenuIcon />
         </IconButton>
         <Drawer variant="temporary" open={mobileOpen} onClose={() => setMobileOpen(false)} ModalProps={{ keepMounted: true }}>
-          <Box sx={{ width: EXPANDED_WIDTH }}>{drawerContent}</Box>
+          <Box sx={{ width: EXPANDED_WIDTH, height: '100%' }}>{drawerContent}</Box>
         </Drawer>
       </>
     );

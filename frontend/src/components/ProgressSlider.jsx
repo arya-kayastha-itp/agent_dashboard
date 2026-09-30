@@ -21,7 +21,7 @@ export default function ProgressSlider({ value, onChange, size = 'medium' }) {
         type="number"
         size="small"
         inputProps={{ min: 0, max: 100, step: 5, 'aria-label': 'Progress percentage' }}
-        sx={{ width: 84, flexShrink: 0 }}
+        sx={{ width: 74, flexShrink: 0 }}
       />
     </Stack>
   );

@@ -50,7 +50,11 @@ export default function App({ onToggleTheme, themeMode }) {
                 <Sidebar onToggleTheme={onToggleTheme} themeMode={themeMode} />
 
                 <Box component="main" sx={{ flexGrow: 1, minWidth: 0 }}>
-                  <Container maxWidth={false} sx={{ py: 2.5, px: { xs: 2, md: 3 } }}>
+                  {/* Extra bottom room when the floating Add button is present, so it never covers the last row. */}
+                  <Container
+                    maxWidth={false}
+                    sx={{ pt: { xs: 8, md: 3.5 }, pb: canAddAgent(persona) ? 11 : 4, px: { xs: 2, md: 4.5 } }}
+                  >
                     <Routes>
                       <Route path="/" element={<HomePage />} />
                       <Route path="/agents" element={<AllAgentsPage />} />
@@ -71,7 +75,12 @@ export default function App({ onToggleTheme, themeMode }) {
                   variant="extended"
                   color="primary"
                   onClick={() => (onTeamsPage ? setAddMemberOpen(true) : setAddAgentOpen(true))}
-                  sx={{ position: 'fixed', bottom: 24, right: 24 }}
+                  sx={{
+                    position: 'fixed',
+                    bottom: { xs: 16, md: 24 },
+                    right: { xs: 16, md: 28 },
+                    animation: 'g-pop 0.6s var(--g-ease) 0.5s backwards',
+                  }}
                 >
                   <AddIcon sx={{ mr: 1 }} />
                   {onTeamsPage ? 'Add Member' : 'Add Agent'}

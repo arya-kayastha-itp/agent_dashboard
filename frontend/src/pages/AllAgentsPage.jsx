@@ -4,6 +4,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { useMemo, useState } from 'react';
+import AccentMark from '../components/AccentMark';
 import AgentCard from '../components/AgentCard';
 import DashboardSummaryBanner from '../components/DashboardSummaryBanner';
 import ErrorAlert from '../components/ErrorAlert';
@@ -28,9 +29,10 @@ export default function AllAgentsPage() {
 
   return (
     <Box>
-      <Typography variant="h4" sx={{ mb: 2 }}>
-        All Agents
-      </Typography>
+      <Box sx={{ mb: 3.5, animation: 'g-rise 0.6s var(--g-ease) backwards' }}>
+        <AccentMark />
+        <Typography variant="h4">All Agents</Typography>
+      </Box>
 
       {isLoading && (
         <Stack direction="row" spacing={1.5} alignItems="center">
@@ -51,12 +53,12 @@ export default function AllAgentsPage() {
       <Box
         sx={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-          gap: 1.5,
+          gridTemplateColumns: 'repeat(auto-fill, minmax(215px, 1fr))',
+          gap: 2,
         }}
       >
-        {visibleAgents?.map((agent) => (
-          <AgentCard key={agent.id} agent={agent} />
+        {visibleAgents?.map((agent, index) => (
+          <AgentCard key={agent.id} agent={agent} index={index} />
         ))}
       </Box>
     </Box>

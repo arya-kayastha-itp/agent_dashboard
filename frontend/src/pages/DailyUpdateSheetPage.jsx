@@ -1,7 +1,9 @@
+import CheckIcon from '@mui/icons-material/Check';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
+import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
@@ -13,6 +15,7 @@ import TableSortLabel from '@mui/material/TableSortLabel';
 import Typography from '@mui/material/Typography';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import AccentMark from '../components/AccentMark';
 import DailySheetRow from '../components/DailySheetRow';
 import ErrorAlert from '../components/ErrorAlert';
 import { useToast } from '../components/ToastProvider';
@@ -98,32 +101,71 @@ export default function DailyUpdateSheetPage() {
 
   return (
     <Box>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
-        <Typography variant="h4">Daily Update Sheet</Typography>
-        <Button variant="contained" onClick={handleSubmit} disabled={submitUpdates.isPending}>
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        justifyContent="space-between"
+        alignItems={{ xs: 'flex-start', sm: 'flex-end' }}
+        spacing={2}
+        sx={{ mb: 2.5, animation: 'g-rise 0.6s var(--g-ease) backwards' }}
+      >
+        <Box>
+          <AccentMark />
+          <Typography variant="h4">Daily Update Sheet</Typography>
+        </Box>
+        <Button variant="contained" startIcon={<CheckIcon />} onClick={handleSubmit} disabled={submitUpdates.isPending}>
           Submit Today&apos;s Update
         </Button>
       </Stack>
 
       {totalCount > 0 && (
-        <Typography color="text.secondary" sx={{ mb: 2 }}>
-          {carriedOverCount === 0
-            ? `All ${totalCount} projects have been updated today.`
-            : `${totalCount - carriedOverCount} of ${totalCount} confirmed, ${carriedOverCount} carried over from before — please review and confirm.`}
-        </Typography>
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          spacing={{ xs: 1.25, sm: 2.25 }}
+          alignItems={{ xs: 'flex-start', sm: 'center' }}
+          sx={{ mb: 3, animation: 'g-rise 0.6s var(--g-ease) 0.1s backwards' }}
+        >
+          <Box
+            aria-hidden="true"
+            sx={{ display: 'flex', gap: totalCount > 30 ? '2px' : '4px', width: 200, flexShrink: 0 }}
+          >
+            {Array.from({ length: totalCount }, (_, i) => (
+              <Box
+                key={i}
+                sx={{ flex: 1, height: 6, borderRadius: '3px', bgcolor: i < totalCount - carriedOverCount ? 'primary.main' : 'var(--g-track)' }}
+              />
+            ))}
+          </Box>
+          <Typography color="text.secondary" sx={{ fontWeight: 600 }}>
+            {carriedOverCount === 0 ? (
+              `All ${totalCount} projects have been updated today.`
+            ) : (
+              <>
+                <Box component="b" sx={{ color: 'text.primary', fontWeight: 800 }}>
+                  {`${totalCount - carriedOverCount} of ${totalCount} confirmed`}
+                </Box>
+                {', '}
+                <Box component="span" sx={{ color: 'warning.main', fontWeight: 800 }}>
+                  {`${carriedOverCount} carried over`}
+                </Box>
+                {' from before — please review and confirm.'}
+              </>
+            )}
+          </Typography>
+        </Stack>
       )}
 
-      <TableContainer>
+      <TableContainer component={Paper} variant="outlined" sx={{ animation: 'g-rise 0.7s var(--g-ease) 0.15s backwards' }}>
         <Table size="small">
           <TableHead>
             <TableRow>
-              <TableCell>
+              {/* Width hints keep Notes — the column people actually type in — the widest. */}
+              <TableCell sx={{ width: '22%' }}>
                 <TableSortLabel active={orderBy === 'agentName'} direction={direction} onClick={() => handleSort('agentName')}>
                   Agent
                 </TableSortLabel>
               </TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell>Progress</TableCell>
+              <TableCell sx={{ width: '17%' }}>Status</TableCell>
+              <TableCell sx={{ width: '22%' }}>Progress</TableCell>
               <TableCell>{FIELD_LABELS.statusDescription}</TableCell>
             </TableRow>
           </TableHead>
@@ -143,19 +185,21 @@ export default function DailyUpdateSheetPage() {
         </Table>
       </TableContainer>
 
-      <Typography variant="h5" sx={{ mt: 5, mb: 2 }}>
-        Update History
-      </Typography>
+      <Paper variant="outlined" sx={{ mt: 4, p: 3, animation: 'g-rise 0.7s var(--g-ease) 0.25s backwards' }}>
+        <Typography variant="h5" sx={{ mb: 2.5 }}>
+          Update History
+        </Typography>
 
-      {isHistoryLoading && (
-        <Stack direction="row" spacing={1.5} alignItems="center">
-          <CircularProgress size={20} />
-          <Typography color="text.secondary">Loading update history…</Typography>
-        </Stack>
-      )}
-      {isHistoryError && <ErrorAlert onRetry={refetchHistory}>Failed to load update history.</ErrorAlert>}
-      {allHistory && allHistory.length === 0 && <Alert severity="info">No updates recorded yet.</Alert>}
-      {allHistory && allHistory.length > 0 && <UpdateHistoryList history={allHistory} />}
+        {isHistoryLoading && (
+          <Stack direction="row" spacing={1.5} alignItems="center">
+            <CircularProgress size={20} />
+            <Typography color="text.secondary">Loading update history…</Typography>
+          </Stack>
+        )}
+        {isHistoryError && <ErrorAlert onRetry={refetchHistory}>Failed to load update history.</ErrorAlert>}
+        {allHistory && allHistory.length === 0 && <Alert severity="info">No updates recorded yet.</Alert>}
+        {allHistory && allHistory.length > 0 && <UpdateHistoryList history={allHistory} />}
+      </Paper>
     </Box>
   );
 }

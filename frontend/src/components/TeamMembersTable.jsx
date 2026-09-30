@@ -8,6 +8,7 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
 import { Link as RouterLink } from 'react-router-dom';
+import { PersonAvatar } from './AssigneeAvatars';
 import RemoveTeamMemberButton from './RemoveTeamMemberButton';
 
 export default function TeamMembersTable({ members }) {
@@ -24,14 +25,21 @@ export default function TeamMembersTable({ members }) {
         <TableBody>
           {members.map((member) => (
             <TableRow key={member.id} hover>
-              <TableCell sx={{ whiteSpace: 'nowrap' }}>{member.name}</TableCell>
-              <TableCell>
+              <TableCell sx={{ whiteSpace: 'nowrap', py: 1.25 }}>
+                <Stack direction="row" spacing={1.25} alignItems="center">
+                  <PersonAvatar name={member.name} />
+                  <Typography variant="body2" sx={{ fontWeight: 800, fontSize: '0.84rem' }}>
+                    {member.name}
+                  </Typography>
+                </Stack>
+              </TableCell>
+              <TableCell sx={{ py: 1.25 }}>
                 {member.agents.length === 0 ? (
                   <Typography variant="body2" color="text.secondary">
                     None
                   </Typography>
                 ) : (
-                  <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                     {member.agents.map((agent) => (
                       <Chip
                         key={agent.id}
@@ -41,6 +49,7 @@ export default function TeamMembersTable({ members }) {
                         component={RouterLink}
                         to={`/agents/${agent.id}`}
                         clickable
+                        sx={{ height: 25, borderRadius: '8px', fontWeight: 700, color: 'text.primary' }}
                       />
                     ))}
                   </Stack>
