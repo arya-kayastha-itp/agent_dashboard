@@ -79,3 +79,26 @@ Portfolio Insights is deliberately hidden from Agent Manager — it's aggregate 
 
    - Backend: http://localhost:4000/api/health
    - Frontend: http://localhost:5174
+
+## Deployment (Azure)
+
+Live at https://agent-dashboard.ambitioussky-c28d301a.eastus.azurecontainerapps.io
+
+The app ships as a single Docker image ([Dockerfile](Dockerfile)): Express serves both `/api` and the built React SPA from one origin, so there's no CORS or API-URL wiring. It runs on Azure Container Apps (subscription `Intuitive-AIOps-POC-1-MPN`, resource group `rg-agent-dashboard`, East US — same metro as the Databricks workspace in AWS us-east-1), scaling 0→1 replicas.
+
+| Resource | Name |
+|---|---|
+| Container App | `agent-dashboard` |
+| Container Apps environment | `cae-agent-dashboard` |
+| Container Registry | `acragentdash8cb3e1` |
+| Log Analytics | `log-agent-dashboard` |
+
+Config lives on the Container App, not in the image: `DATABRICKS_*`, `CORS_ORIGIN` as env vars; `DATABRICKS_TOKEN`, `AUTH_PASSWORD`, `JWT_SECRET` as Container App secrets (`az containerapp secret set …`). Values must not have trailing whitespace — unlike `dotenv`, Azure doesn't trim them.
+
+**Redeploy** the current working tree (needs Docker, `az login`, and `az extension add --name containerapp`):
+
+```
+./scripts/deploy-azure.sh
+```
+
+**Logs:** `az containerapp logs show -g rg-agent-dashboard -n agent-dashboard --follow`
