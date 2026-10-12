@@ -1,3 +1,5 @@
+const fs = require('fs');
+const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const env = require('./config/env');
@@ -22,6 +24,18 @@ app.use('/api/updates', updatesRoutes);
 app.use('/api/finops', finopsRoutes);
 app.use('/api/insights', insightsRoutes);
 app.use('/api/team-members', teamMembersRoutes);
+
+// In the deployed container the built SPA sits at frontend/dist and is served
+// from this same origin, so the frontend's relative `/api` base URL just works.
+// In local dev Vite serves the frontend on its own port, so this is skipped
+// unless a build happens to exist (and is harmless if it does).
+const staticDir = path.resolve(__dirname, '../../frontend/dist');
+if (fs.existsSync(staticDir)) {
+  app.use(express.static(staticDir));
+  // Client-side routes (BrowserRouter) fall back to index.html; unknown /api
+  // paths still fall through to the JSON 404 below.
+  app.get(/^(?!\/api(\/|$)).*/, (req, res) => res.sendFile(path.join(staticDir, 'index.html')));
+}
 
 app.use(notFoundHandler);
 app.use(errorHandler);
