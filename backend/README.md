@@ -69,9 +69,13 @@ Each of those also produces a `narrative` — a template-generated plain-English
 
 Request bodies are validated with Zod schemas in `validators/`, applied via `middleware/validate.js` (`validateBody(schema)`) on the route definition. Query params are read directly in controllers and aren't schema-validated — keep that in mind if you add a query param that needs real validation, not just a `Number(...)` cast.
 
-## Email alerts
+## Accounts and sign-in
 
-`services/mailer.service.js` is a stub — it logs what it would send instead of sending it. No SMTP is configured. Alert-raising code (`alerts.service.js`) already calls it, so wiring real delivery in only touches that one file.
+`services/users.service.js` owns accounts (`users` table, one per team member) and one-time links (`user_tokens`, stored as SHA-256 hashes). Passwords are scrypt hashes (`services/credentials.service.js`). Session JWTs carry the account id and its `token_version`; `middleware/auth.js` checks both against the account on every request (cached for 60 seconds, evicted on every account write), so deactivation, role changes and password resets end sessions immediately. The persona on `req.user` comes from the account's role, never from the token. `npm run users:link -- <email>` prints a set-password link for an existing account — that's how the first Agent Manager gets in.
+
+## Email
+
+`services/mailer.service.js` sends invite and password-reset links through Azure Communication Services when `ACS_CONNECTION_STRING` and `EMAIL_SENDER` are set, and logs instead when they aren't; it never throws, so a mail failure can't fail the request. FinOps alert email (`sendAlertEmail`) is still a logging stub — alert-raising code (`alerts.service.js`) already calls it, so wiring real delivery in only touches that one function.
 
 ## Databricks migration (done)
 
@@ -96,4 +100,4 @@ npm run seed:databricks --workspace backend       # optional, local sample data
 
 ## Linting / tests
 
-No dedicated backend lint script or test suite exists yet — `node -e "require('./src/app.js')"` is a quick sanity check that the app boots without a syntax/require error.
+No dedicated backend lint script exists yet. `npm test --workspace backend` runs the unit tests in `test/` with Node's built-in runner (password hashing and link tokens so far). `node -e "require('./src/app.js')"` is a quick sanity check that the app boots without a syntax/require error.

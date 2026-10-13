@@ -11,9 +11,10 @@ import { useState } from 'react';
 import { useDeleteTeamMember } from '../hooks/useTeamMembers';
 import { useToast } from './ToastProvider';
 
-// Removing someone also unassigns them from their agents, so the confirm
-// dialog says exactly which agents that touches before anything happens.
-export default function RemoveTeamMemberButton({ member }) {
+// Removing someone also unassigns them from their agents and deletes their
+// sign-in account, so the confirm dialog says exactly what that touches
+// before anything happens.
+export default function RemoveTeamMemberButton({ member, hasAccount }) {
   const deleteMember = useDeleteTeamMember();
   const showToast = useToast();
   const [open, setOpen] = useState(false);
@@ -51,6 +52,7 @@ export default function RemoveTeamMemberButton({ member }) {
             {agentNames.length === 0
               ? `${member.name} isn't assigned to any agents.`
               : `${member.name} will be unassigned from ${agentNames.length === 1 ? 'this agent' : `these ${agentNames.length} agents`}: ${agentNames.join(', ')}. The agents themselves are kept — they just lose this assignee.`}
+            {hasAccount && ' Their sign-in account is deleted too — to only block sign-in, deactivate them instead.'}
           </DialogContentText>
         </DialogContent>
         <DialogActions>

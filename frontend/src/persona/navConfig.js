@@ -1,6 +1,6 @@
 import { PERSONAS } from '../constants';
 
-const { EXECUTIVE, AGENT_MANAGER, FINOPS } = PERSONAS;
+const { EXECUTIVE, AGENT_MANAGER, FINOPS, CONTRIBUTOR } = PERSONAS;
 
 // "Home" is one route for everyone, but not one component — App.jsx's
 // HomePage renders a different composition per persona (queue / cost
@@ -8,7 +8,7 @@ const { EXECUTIVE, AGENT_MANAGER, FINOPS } = PERSONAS;
 // `configure: true` — occasional setup tasks, so App.jsx renders them in a
 // secondary "Configure" menu instead of as equal-weight top-nav buttons.
 export const NAV_ITEMS = [
-  { label: 'Home', path: '/', visibleTo: [EXECUTIVE, AGENT_MANAGER, FINOPS] },
+  { label: 'Home', path: '/', visibleTo: [EXECUTIVE, AGENT_MANAGER, FINOPS, CONTRIBUTOR] },
   { label: 'Marketplace', path: '/marketplace', visibleTo: [EXECUTIVE, AGENT_MANAGER] },
   { label: 'Metrics', path: '/insights', visibleTo: [EXECUTIVE] },
   { label: 'Daily Update Sheet', path: '/daily-sheet', visibleTo: [AGENT_MANAGER] },

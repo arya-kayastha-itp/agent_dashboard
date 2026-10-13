@@ -36,7 +36,7 @@ src/
 QueryClientProvider          — TanStack React Query
   ThemeProvider + CssBaseline  — MUI
     BrowserRouter
-      PersonaProvider          — current persona, stored in localStorage
+      PersonaProvider          — signed-in persona, user and session token, stored in localStorage
         ToastProvider          — app-wide success/error toasts (useToast())
           App
 ```
@@ -47,7 +47,7 @@ Every backend resource has an `api/<resource>.api.js` (plain axios calls) and a 
 
 ### Personas
 
-`persona/PersonaContext.jsx` holds the current persona (no real auth — see the root README). `persona/navConfig.js` maps each nav item to the personas that can see it; `persona/RequirePersonaRoute.jsx` enforces that at the route level. `persona/permissions.js` holds the two fine-grained checks that aren't route-level (`canEditAgents`, `canAddAgent`). There's exactly one component-level (non-route) persona check in the app — hiding `PortfolioInsightsPanel` from Agent Manager in `pages/DashboardPage.jsx` — everything else is nav/route granularity.
+`persona/PersonaContext.jsx` holds the signed-in persona (the account's role), user and session token — see "Accounts and personas" in the root README. The signed-out screens (`PersonaLoginPage`, `SetPasswordPage`, `ForgotPasswordPage`) share `components/AuthLayout.jsx`. `persona/navConfig.js` maps each nav item to the personas that can see it; `persona/RequirePersonaRoute.jsx` enforces that at the route level. `persona/permissions.js` holds the two fine-grained checks that aren't route-level (`canEditAgents`, `canAddAgent`). There's exactly one component-level (non-route) persona check in the app — hiding `PortfolioInsightsPanel` from Agent Manager in `pages/DashboardPage.jsx` — everything else is nav/route granularity.
 
 ### Notable shared components
 

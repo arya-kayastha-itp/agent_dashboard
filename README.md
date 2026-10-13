@@ -1,17 +1,20 @@
 # Agent Dashboard
 
-Internal tool for tracking the status and progress of AI agent development workstreams, with a built-in FinOps module for monitoring API usage, cost, and reliability across those agents. Access is split across three personas — Executive, Agent Manager, and FinOps — each seeing a different slice of the same data.
+Internal tool for tracking the status and progress of AI agent development workstreams, with a built-in FinOps module for monitoring API usage, cost, and reliability across those agents. Access is split across four personas — Contributor, Agent Manager, Executive, and FinOps — each seeing a different slice of the same data.
 
 See also: [frontend/README.md](frontend/README.md) for the React app's structure, [backend/README.md](backend/README.md) for the API's structure, and [.claude/ui-ux-audit.md](.claude/ui-ux-audit.md) for the UI/UX review this app has been through.
 
-## Personas
+## Accounts and personas
 
-There's no real authentication — `/login` is a persona picker (stored in `localStorage`) that stands in for it. Each persona sees a different set of nav items and page content:
+Everyone signs in with their own account. The Agent Manager invites people from the **Teams** page (email + role); each invite is a one-time link, valid for 48 hours, that's emailed when email is configured and can always be copied from the Teams page to send another way. The person opens it, sets a password (12+ characters, stored as a scrypt hash) and is signed in. "Forgot password" on the sign-in page sends a one-hour reset link.
+
+Five failed sign-ins lock an account for 15 minutes. Deactivating someone, changing their role, or a password reset ends their existing sessions immediately. An account's role is its persona:
 
 | Persona | Can see | Can do |
 |---|---|---|
+| **Contributor** | All agents | View-only for now (submitting updates comes next) |
 | **Executive** | Dashboard (incl. Portfolio Insights) | View-only |
-| **Agent Manager** | Dashboard (no Portfolio Insights), Daily Update Sheet | Add agents, edit agent metadata, log daily updates |
+| **Agent Manager** | Dashboard (no Portfolio Insights), Daily Update Sheet, Teams | Add agents, edit agent metadata, log daily updates, invite people and manage their access |
 | **FinOps** | Dashboard (incl. Portfolio Insights), Cost & Reliability, Pricing, Alert Rules | Manage model pricing and alert thresholds; sees the alert bell |
 
 Portfolio Insights is deliberately hidden from Agent Manager — it's aggregate cost/reliability data that isn't relevant to someone logging daily progress. Route-level access is enforced in `frontend/src/persona/` (`RequirePersonaRoute`, `navConfig.js`, `permissions.js`); this one component-level exception lives directly in `DashboardPage.jsx`.
@@ -71,6 +74,12 @@ Portfolio Insights is deliberately hidden from Agent Manager — it's aggregate 
    npm run seed:databricks --workspace backend
    ```
 
+   Migration `010_create_users.sql` creates invited accounts for the three original users. To sign in the first time, print a set-password link (it points at `APP_URL`):
+
+   ```
+   npm run users:link --workspace backend -- arya.kayastha@intuitive.ai
+   ```
+
 4. Start both apps:
 
    ```
@@ -93,7 +102,7 @@ The app ships as a single Docker image ([Dockerfile](Dockerfile)): Express serve
 | Container Registry | `acragentdash8cb3e1` |
 | Log Analytics | `log-agent-dashboard` |
 
-Config lives on the Container App, not in the image: `DATABRICKS_*`, `CORS_ORIGIN` as env vars; `DATABRICKS_TOKEN`, `AUTH_PASSWORD`, `JWT_SECRET` as Container App secrets (`az containerapp secret set …`). Values must not have trailing whitespace — unlike `dotenv`, Azure doesn't trim them.
+Config lives on the Container App, not in the image: `DATABRICKS_*`, `CORS_ORIGIN`, `APP_URL` (the live URL above — invite links point at it) and `EMAIL_SENDER` as env vars; `DATABRICKS_TOKEN`, `JWT_SECRET` and `ACS_CONNECTION_STRING` as Container App secrets (`az containerapp secret set …`). The two email settings are optional — without them invites are copy-link only. Values must not have trailing whitespace — unlike `dotenv`, Azure doesn't trim them.
 
 **Redeploy** the current working tree (needs Docker, `az login`, and `az extension add --name containerapp`):
 

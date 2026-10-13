@@ -2,6 +2,7 @@ import { createContext, useContext, useMemo, useState } from 'react';
 
 const PERSONA_KEY = 'agent-dashboard.persona';
 const TOKEN_KEY = 'agent-dashboard.token';
+const USER_KEY = 'agent-dashboard.user';
 
 const PersonaContext = createContext(null);
 
@@ -22,6 +23,14 @@ function writeStored(key, value) {
   }
 }
 
+function readStoredUser() {
+  try {
+    return JSON.parse(readStored(USER_KEY)) || null;
+  } catch {
+    return null;
+  }
+}
+
 // Plain (non-hook) accessors so api/client.js can attach the token to
 // requests, and clear the session on a 401, without needing to be inside a
 // component.
@@ -32,29 +41,35 @@ export function getStoredToken() {
 export function clearStoredSession() {
   writeStored(PERSONA_KEY, null);
   writeStored(TOKEN_KEY, null);
+  writeStored(USER_KEY, null);
 }
 
 export function PersonaProvider({ children }) {
   const [persona, setPersonaState] = useState(() => readStored(PERSONA_KEY));
+  const [user, setUserState] = useState(readStoredUser);
 
   const value = useMemo(
     () => ({
       persona,
+      // { id, teamMemberId, name, email } of whoever is signed in.
+      user,
       isAuthenticated: persona != null,
-      // Called after a successful POST /api/auth/login — persona and token
-      // arrive together, since the token is what a login actually proves.
-      setSession: (nextPersona, token) => {
+      // Called with the response of a sign-in (POST /api/auth/login or
+      // /api/auth/set-password) — persona, token and user arrive together.
+      setSession: ({ persona: nextPersona, token, user: nextUser }) => {
         writeStored(PERSONA_KEY, nextPersona);
         writeStored(TOKEN_KEY, token);
+        writeStored(USER_KEY, JSON.stringify(nextUser));
         setPersonaState(nextPersona);
+        setUserState(nextUser);
       },
       clearPersona: () => {
-        writeStored(PERSONA_KEY, null);
-        writeStored(TOKEN_KEY, null);
+        clearStoredSession();
         setPersonaState(null);
+        setUserState(null);
       },
     }),
-    [persona],
+    [persona, user],
   );
 
   return <PersonaContext.Provider value={value}>{children}</PersonaContext.Provider>;

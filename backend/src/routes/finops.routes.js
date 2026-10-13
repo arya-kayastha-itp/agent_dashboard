@@ -1,7 +1,7 @@
 const express = require('express');
 const controller = require('../controllers/finops.controller');
 const { authenticate, requirePersona } = require('../middleware/auth');
-const { PERSONAS } = require('../config/authUsers');
+const { PERSONAS } = require('../config/personas');
 const { validateBody } = require('../middleware/validate');
 const { usageLogSchema, batchEnvelopeSchema, createPricingSchema, upsertThresholdSchema, alertPatchSchema } = require('../validators/finops.schema');
 

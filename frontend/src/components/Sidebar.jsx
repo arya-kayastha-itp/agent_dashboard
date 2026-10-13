@@ -75,12 +75,12 @@ const sectionLabelSx = {
 };
 
 // Everything that used to live in the top AppBar (brand mark, nav, theme
-// toggle, alerts, persona switch) now lives here instead, so the top of the
+// toggle, alerts, who's signed in) now lives here instead, so the top of the
 // page is nothing but table headers and table content.
 export default function Sidebar({ onToggleTheme, themeMode }) {
   const [collapsed, setCollapsed] = useState(readCollapsed);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { persona, clearPersona } = usePersona();
+  const { persona, user, clearPersona } = usePersona();
   const navigate = useNavigate();
   const location = useLocation();
   const theme = useTheme();
@@ -94,7 +94,7 @@ export default function Sidebar({ onToggleTheme, themeMode }) {
     });
   };
 
-  const handleSwitchPersona = () => {
+  const handleSignOut = () => {
     clearPersona();
     navigate('/login');
   };
@@ -103,6 +103,13 @@ export default function Sidebar({ onToggleTheme, themeMode }) {
   const showRail = collapsed && !isNarrow;
   const width = showRail ? COLLAPSED_WIDTH : EXPANDED_WIDTH;
   const personaLabel = PERSONA_LABELS[persona];
+  const displayName = user?.name || personaLabel;
+  const initials = (displayName || '')
+    .split(' ')
+    .map((part) => part[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
   const accent = theme.palette.primary.main;
 
   const navList = (
@@ -242,10 +249,10 @@ export default function Sidebar({ onToggleTheme, themeMode }) {
         </Stack>
         {SHOW_ALERT_BELL.includes(persona) && <AlertBell />}
       </Stack>
-      <Tooltip title={showRail ? 'Switch persona' : ''} placement="right">
+      <Tooltip title={showRail ? `${displayName} (${personaLabel}) · Sign out` : personaLabel} placement="right">
         <ButtonBase
-          onClick={handleSwitchPersona}
-          aria-label={`${personaLabel} · Switch`}
+          onClick={handleSignOut}
+          aria-label={`${displayName} · Sign out`}
           sx={{
             width: '100%',
             height: 38,
@@ -283,17 +290,17 @@ export default function Sidebar({ onToggleTheme, themeMode }) {
                 letterSpacing: '0.04em',
               }}
             >
-              {personaLabel?.slice(0, 2).toUpperCase()}
+              {initials}
             </Box>
             {!showRail && (
               <Box component="span" sx={{ fontSize: '0.75rem', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {personaLabel}
+                {displayName}
               </Box>
             )}
           </Box>
           {!showRail && (
-            <Box component="span" sx={{ fontSize: '0.69rem', fontWeight: 700, color: 'text.disabled' }}>
-              Switch
+            <Box component="span" sx={{ fontSize: '0.69rem', fontWeight: 700, color: 'text.disabled', flexShrink: 0 }}>
+              Sign out
             </Box>
           )}
         </ButtonBase>

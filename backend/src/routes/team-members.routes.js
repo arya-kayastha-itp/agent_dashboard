@@ -1,7 +1,7 @@
 const express = require('express');
 const controller = require('../controllers/team-members.controller');
 const { authenticate, requirePersona } = require('../middleware/auth');
-const { PERSONAS } = require('../config/authUsers');
+const { PERSONAS } = require('../config/personas');
 const { validateBody } = require('../middleware/validate');
 const { createTeamMemberSchema } = require('../validators/team-member.schema');
 

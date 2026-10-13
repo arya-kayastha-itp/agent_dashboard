@@ -13,14 +13,15 @@ export function useCreateTeamMember() {
   });
 }
 
-// Removing a member also unassigns them everywhere, so the agent lists (which
-// show assignees) are stale too, not just the roster.
+// Removing a member also unassigns them everywhere and deletes their account,
+// so the agent lists (which show assignees) and accounts are stale too, not
+// just the roster.
 export function useDeleteTeamMember() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: deleteTeamMember,
     onSuccess: () => {
-      ['teamMembers', 'agents'].forEach((key) => queryClient.invalidateQueries({ queryKey: [key] }));
+      ['teamMembers', 'agents', 'users'].forEach((key) => queryClient.invalidateQueries({ queryKey: [key] }));
     },
   });
 }

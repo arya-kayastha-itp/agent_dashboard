@@ -9,11 +9,13 @@ import Sidebar from './components/Sidebar';
 import AgentDetailPage from './pages/AgentDetailPage';
 import AllAgentsPage from './pages/AllAgentsPage';
 import DailyUpdateSheetPage from './pages/DailyUpdateSheetPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import HomePage from './pages/HomePage';
 import MarketplacePage from './pages/MarketplacePage';
 import PersonaLoginPage from './pages/PersonaLoginPage';
 import PortfolioInsightsPage from './pages/PortfolioInsightsPage';
 import PricingAdminPage from './pages/PricingAdminPage';
+import SetPasswordPage from './pages/SetPasswordPage';
 import TeamsPage from './pages/TeamsPage';
 import ThresholdsAdminPage from './pages/ThresholdsAdminPage';
 import { navItemFor } from './persona/navConfig';
@@ -42,6 +44,8 @@ export default function App({ onToggleTheme, themeMode }) {
     <Box>
       <Routes>
         <Route path="/login" element={<PersonaLoginPage />} />
+        <Route path="/set-password" element={<SetPasswordPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route
           path="/*"
           element={

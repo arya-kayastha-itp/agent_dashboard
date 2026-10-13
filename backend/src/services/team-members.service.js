@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const db = require('../db/databricksClient');
+const usersService = require('./users.service');
 
 function httpError(status, code, message) {
   const err = new Error(message);
@@ -53,13 +54,14 @@ async function createTeamMember({ name }) {
   return { id, name: cleanName, createdAt: now, agents: [] };
 }
 
-// Removing a member also unassigns them from every agent (the join table's
-// foreign keys are NOT ENFORCED in Databricks, so nothing cascades on its own).
-// Assignments go first so a failure partway never leaves a member-less row
-// pointing at a deleted person.
+// Removing a member also unassigns them from every agent and deletes their
+// sign-in account (foreign keys are NOT ENFORCED in Databricks, so nothing
+// cascades on its own). Dependents go first so a failure partway never leaves
+// a row pointing at a deleted person.
 async function deleteTeamMember(id) {
   const existing = await db.queryOne('SELECT id FROM team_members WHERE id = :id', { id });
   if (!existing) return false;
+  await usersService.deleteAccountForTeamMember(id);
   await db.query('DELETE FROM agent_assignees WHERE team_member_id = :id', { id });
   await db.query('DELETE FROM team_members WHERE id = :id', { id });
   return true;

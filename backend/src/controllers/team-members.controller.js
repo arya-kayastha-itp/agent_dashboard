@@ -19,6 +19,9 @@ async function createTeamMember(req, res, next) {
 
 async function deleteTeamMember(req, res, next) {
   try {
+    if (req.params.id === req.user.teamMemberId) {
+      return res.status(400).json({ error: { message: "You can't remove yourself from the team.", code: 'CANNOT_CHANGE_SELF' } });
+    }
     const deleted = await teamMembersService.deleteTeamMember(req.params.id);
     if (!deleted) {
       return res.status(404).json({ error: { message: 'Team member not found', code: 'NOT_FOUND' } });

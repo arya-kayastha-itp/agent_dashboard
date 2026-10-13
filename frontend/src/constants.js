@@ -2,7 +2,11 @@ export const PERSONAS = {
   EXECUTIVE: 'EXECUTIVE',
   AGENT_MANAGER: 'AGENT_MANAGER',
   FINOPS: 'FINOPS',
+  CONTRIBUTOR: 'CONTRIBUTOR',
 };
+
+// Mirrors backend/src/validators/auth.schema.js.
+export const PASSWORD_MIN_LENGTH = 12;
 
 export const STATUS_VALUES = ['Not Started', 'In Progress', 'Blocked', 'Completed', 'On Hold'];
 

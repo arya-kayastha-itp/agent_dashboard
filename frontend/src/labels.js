@@ -19,4 +19,18 @@ export const PERSONA_LABELS = {
   EXECUTIVE: 'Executive',
   AGENT_MANAGER: 'Agent Manager',
   FINOPS: 'FinOps',
+  CONTRIBUTOR: 'Contributor',
+};
+
+export const PERSONA_DESCRIPTIONS = {
+  CONTRIBUTOR: 'Sees every agent; submits updates for the agents they work on',
+  AGENT_MANAGER: 'Reviews updates and manages agents, people and access',
+  EXECUTIVE: 'Read-only view of the portfolio',
+  FINOPS: 'Pricing, alert rules and cost views',
+};
+
+export const ACCOUNT_STATUS_LABELS = {
+  invited: 'Invited',
+  active: 'Active',
+  deactivated: 'Deactivated',
 };

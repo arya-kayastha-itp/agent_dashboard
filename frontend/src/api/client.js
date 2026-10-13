@@ -15,11 +15,15 @@ client.interceptors.request.use((config) => {
 // backend/src/middleware/auth.js) — a 401 here means the token is missing,
 // expired, or was revoked server-side, not a normal request failure. Bounce
 // to /login rather than showing every screen its own "not authenticated"
-// error state.
+// error state. The signed-out auth screens (sign in, set password, forgot
+// password) handle their own errors.
+const SIGNED_OUT_ENDPOINTS = ['/auth/login', '/auth/link', '/auth/set-password', '/auth/forgot-password'];
+
 client.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401 && !error.config?.url?.endsWith('/auth/login')) {
+    const url = error.config?.url || '';
+    if (error.response?.status === 401 && !SIGNED_OUT_ENDPOINTS.some((path) => url.endsWith(path))) {
       clearStoredSession();
       window.location.assign('/login');
     }

@@ -4,7 +4,13 @@ function notFoundHandler(req, res) {
 
 // eslint-disable-next-line no-unused-vars
 function errorHandler(err, req, res, next) {
-  console.error(err);
+  // Expected client errors (wrong password, validation, 404s…) get one line;
+  // only real failures need the stack.
+  if (err.status && err.status < 500) {
+    console.warn(`${req.method} ${req.originalUrl} → ${err.status} ${err.code || ''} ${err.message}`);
+  } else {
+    console.error(err);
+  }
 
   if (err.code === 'FK_VIOLATION') {
     return res.status(400).json({ error: { message: err.message || 'Referenced record does not exist', code: 'FOREIGN_KEY_VIOLATION' } });
