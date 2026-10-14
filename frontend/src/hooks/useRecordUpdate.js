@@ -9,6 +9,7 @@ export function useRecordUpdate() {
       queryClient.invalidateQueries({ queryKey: ['agents'] });
       queryClient.invalidateQueries({ queryKey: ['agentHistory', variables.agentId] });
       queryClient.invalidateQueries({ queryKey: ['updates'] });
+      queryClient.invalidateQueries({ queryKey: ['audit'] });
     },
   });
 }

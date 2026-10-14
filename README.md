@@ -14,7 +14,7 @@ Five failed sign-ins lock an account for 15 minutes. Deactivating someone, chang
 |---|---|---|
 | **Contributor** | My Agents — only the agents they're assigned to (enforced by the API: other agents answer 404, and portfolio insights and the team roster are closed to them) | Send updates for those agents, for the Agent Manager to review |
 | **Executive** | Dashboard (incl. Portfolio Insights) | View-only |
-| **Agent Manager** | Dashboard (no Portfolio Insights), Review, Daily Update Sheet, Teams | Review contributors' updates, add agents, edit agent metadata, log daily updates directly, invite people and manage their access |
+| **Agent Manager** | Dashboard (no Portfolio Insights), Review, Daily Update Sheet, Teams, Audit log | Review contributors' updates, add agents, edit agent metadata, log daily updates directly, invite people and manage their access |
 
 ## Updates and review
 
@@ -24,6 +24,10 @@ An agent's assignees send updates (status, progress, notes, and optionally a new
 - Sending a new update replaces your own earlier pending one. Approving one update for an agent closes any older pending ones for it.
 - An approved update becomes the history entry for the day it was sent, credited to the person who sent it. An old update approved late is recorded in history but never rolls the agent's current status back.
 - The Agent Manager's own updates (Daily Update Sheet, quick update, agent page) apply straight away, as before, and are now credited to them.
+
+## Audit log
+
+The **Audit log** page (Agent Manager) lists every change to an agent, newest first: agents created, edited (name, description, target date, marketplace flag, assignees) and deleted; direct updates; and every submission and review decision — each with who did it, when, and the before → after values. Filter by agent or by person (a person filter shows what they did *and* reviews of their updates). Each agent's page shows its latest activity with a link to its full log. Entries are never edited or deleted, and keep the agent's and people's names even after they're removed. The log starts when migration `012` runs; earlier changes aren't backfilled.
 | **FinOps** | Dashboard (incl. Portfolio Insights), Cost & Reliability, Pricing, Alert Rules | Manage model pricing and alert thresholds; sees the alert bell |
 
 Portfolio Insights is deliberately hidden from Agent Manager — it's aggregate cost/reliability data that isn't relevant to someone logging daily progress. Route-level access is enforced in `frontend/src/persona/` (`RequirePersonaRoute`, `navConfig.js`, `permissions.js`); this one component-level exception lives directly in `DashboardPage.jsx`.

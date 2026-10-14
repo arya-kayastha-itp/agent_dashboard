@@ -11,6 +11,7 @@ const insightsRoutes = require('./routes/insights.routes');
 const teamMembersRoutes = require('./routes/team-members.routes');
 const usersRoutes = require('./routes/users.routes');
 const submissionsRoutes = require('./routes/submissions.routes');
+const auditRoutes = require('./routes/audit.routes');
 const { notFoundHandler, errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
@@ -28,6 +29,7 @@ app.use('/api/insights', insightsRoutes);
 app.use('/api/team-members', teamMembersRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/submissions', submissionsRoutes);
+app.use('/api/audit', auditRoutes);
 
 // In the deployed container the built SPA sits at frontend/dist and is served
 // from this same origin, so the frontend's relative `/api` base URL just works.

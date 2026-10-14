@@ -16,6 +16,7 @@ import { format } from 'date-fns';
 import { useState } from 'react';
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
 import { computeAgentHealth } from '../agentHealth';
+import AgentActivityPanel from '../components/AgentActivityPanel';
 import AgentUpdateForm from '../components/AgentUpdateForm';
 import AssigneeAvatars from '../components/AssigneeAvatars';
 import DeleteAgentButton from '../components/DeleteAgentButton';
@@ -268,6 +269,8 @@ export default function AgentDetailPage() {
         {history && history.length === 0 && <Alert severity="info">No history recorded yet.</Alert>}
         {history && history.length > 0 && <HistoryChart history={history} />}
       </Paper>
+
+      {canReviewUpdates(persona) && <AgentActivityPanel agentId={id} />}
     </Box>
   );
 }

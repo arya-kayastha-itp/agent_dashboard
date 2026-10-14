@@ -39,7 +39,7 @@ async function createAgent(req, res, next) {
 
 async function updateAgent(req, res, next) {
   try {
-    const agent = await agentsService.updateAgentMetadata(req.params.id, req.validatedBody);
+    const agent = await agentsService.updateAgentMetadata(req.params.id, req.validatedBody, req.user);
     if (!agent) {
       return res.status(404).json({ error: { message: 'Agent not found', code: 'NOT_FOUND' } });
     }
@@ -60,7 +60,7 @@ async function reorderAgents(req, res, next) {
 
 async function deleteAgent(req, res, next) {
   try {
-    const deleted = await agentsService.deleteAgent(req.params.id);
+    const deleted = await agentsService.deleteAgent(req.params.id, req.user);
     if (!deleted) {
       return res.status(404).json({ error: { message: 'Agent not found', code: 'NOT_FOUND' } });
     }

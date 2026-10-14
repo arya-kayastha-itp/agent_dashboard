@@ -12,7 +12,7 @@ export function useCreateAgent() {
   return useMutation({
     mutationFn: createAgent,
     onSuccess: () => {
-      ['agents', 'teamMembers'].forEach((key) => queryClient.invalidateQueries({ queryKey: [key] }));
+      ['agents', 'teamMembers', 'audit'].forEach((key) => queryClient.invalidateQueries({ queryKey: [key] }));
     },
   });
 }
@@ -22,7 +22,7 @@ export function useUpdateAgent() {
   return useMutation({
     mutationFn: ({ id, payload }) => updateAgent(id, payload),
     onSuccess: () => {
-      ['agents', 'teamMembers'].forEach((key) => queryClient.invalidateQueries({ queryKey: [key] }));
+      ['agents', 'teamMembers', 'audit'].forEach((key) => queryClient.invalidateQueries({ queryKey: [key] }));
     },
   });
 }
@@ -36,7 +36,7 @@ export function useDeleteAgent() {
     onSuccess: (data, id) => {
       queryClient.removeQueries({ queryKey: ['agentHistory', id] });
       queryClient.removeQueries({ queryKey: ['agentInsights', id] });
-      ['agents', 'teamMembers', 'updates', 'alerts', 'thresholds', 'usageSummary', 'usageLogs', 'portfolioInsights', 'agentsInsightsSummary'].forEach(
+      ['agents', 'teamMembers', 'updates', 'alerts', 'thresholds', 'usageSummary', 'usageLogs', 'portfolioInsights', 'agentsInsightsSummary', 'audit'].forEach(
         (key) => queryClient.invalidateQueries({ queryKey: [key] }),
       );
     },

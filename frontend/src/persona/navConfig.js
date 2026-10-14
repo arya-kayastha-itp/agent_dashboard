@@ -14,6 +14,7 @@ export const NAV_ITEMS = [
   { label: 'Metrics', path: '/insights', visibleTo: [EXECUTIVE] },
   { label: 'Daily Update Sheet', path: '/daily-sheet', visibleTo: [AGENT_MANAGER] },
   { label: 'Teams', path: '/teams', visibleTo: [AGENT_MANAGER] },
+  { label: 'Audit log', path: '/audit', visibleTo: [AGENT_MANAGER] },
   { label: 'Pricing', path: '/finops/pricing', visibleTo: [FINOPS], configure: true },
   { label: 'Alert Rules', path: '/finops/thresholds', visibleTo: [FINOPS], configure: true },
 ];

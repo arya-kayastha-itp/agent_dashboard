@@ -8,7 +8,7 @@ export function useSubmissions(params = {}, { enabled = true } = {}) {
 // Submitting changes an agent's pending-review badge; reviewing can also
 // change the agent itself and its history — so all of those refresh.
 function refreshAfterSubmission(queryClient) {
-  ['submissions', 'agents', 'agentHistory', 'updates'].forEach((key) => queryClient.invalidateQueries({ queryKey: [key] }));
+  ['submissions', 'agents', 'agentHistory', 'updates', 'audit'].forEach((key) => queryClient.invalidateQueries({ queryKey: [key] }));
 }
 
 function useSubmissionMutation(mutationFn) {

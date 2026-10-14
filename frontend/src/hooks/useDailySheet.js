@@ -25,6 +25,7 @@ export function useSubmitDailyUpdates() {
       );
       queryClient.invalidateQueries({ queryKey: ['agents'] });
       queryClient.invalidateQueries({ queryKey: ['updates'] });
+      queryClient.invalidateQueries({ queryKey: ['audit'] });
     },
   });
 }

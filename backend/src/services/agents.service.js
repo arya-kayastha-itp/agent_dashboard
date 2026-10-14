@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const db = require('../db/databricksClient');
 const { assertTeamMembersExist } = require('./team-members.service');
+const audit = require('./audit.service');
 
 // Assignees live in agent_assignees (one row per agent + team member), not on
 // this row — the legacy agents.assigned_to column is no longer read or written.
@@ -177,14 +178,42 @@ async function createAgent(data, actor) {
   }
 
   const [created] = await attachAssignees([agent]);
+  await audit.record([
+    {
+      action: 'agent_created',
+      actor,
+      agentId: id,
+      agentName: agent.name,
+      details: {
+        status: agent.currentStatus,
+        progress: agent.currentProgress,
+        eta: agent.eta,
+        marketplaceDeployment: agent.marketplaceDeployment,
+        assignees: created.assignees.map((assignee) => assignee.name),
+      },
+    },
+  ]);
   return created;
 }
 
-async function updateAgentMetadata(id, data) {
+// An agent's details as the audit log compares them: eta as 'YYYY-MM-DD' and
+// assignees as names, so before/after line up however the driver renders types.
+async function detailsSnapshot(id) {
+  const row = await db.queryOne(
+    `SELECT name, description, CAST(eta AS STRING) as eta, COALESCE(marketplace_deployment, false) as marketplaceDeployment
+     FROM agents WHERE id = :id`,
+    { id },
+  );
+  if (!row) return undefined;
+  const byAgent = await loadAssignees([id]);
+  return { ...row, assignees: (byAgent.get(id) || []).map((assignee) => assignee.name) };
+}
+
+async function updateAgentMetadata(id, data, actor) {
   // Checked up front so an unknown id can't leave orphan assignee rows, and so
   // an invalid assignee rejects the request before anything is written.
-  const existing = await db.queryOne('SELECT id FROM agents WHERE id = :id', { id });
-  if (!existing) return undefined;
+  const before = await detailsSnapshot(id);
+  if (!before) return undefined;
 
   const assigneeIds = data.assigneeIds === undefined ? undefined : [...new Set(data.assigneeIds)];
   if (assigneeIds) await assertTeamMembersExist(assigneeIds);
@@ -216,10 +245,19 @@ async function updateAgentMetadata(id, data) {
     await db.query('DELETE FROM agent_assignees WHERE agent_id = :id', { id });
     await insertAssignees(id, assigneeIds, params.updatedAt);
   }
+
+  const after = await detailsSnapshot(id);
+  const changes = audit.diff(before, after, ['name', 'description', 'eta', 'marketplaceDeployment']);
+  const added = after.assignees.filter((name) => !before.assignees.includes(name));
+  const removed = before.assignees.filter((name) => !after.assignees.includes(name));
+  if (added.length || removed.length) changes.assignees = { added, removed };
+  if (Object.keys(changes).length) {
+    await audit.record([{ action: 'agent_edited', actor, agentId: id, agentName: after.name, details: { changes } }]);
+  }
   return getAgentById(id);
 }
 
-async function deleteAgent(id) {
+async function deleteAgent(id, actor) {
   const existing = await getAgentById(id);
   if (!existing) return false;
   // The agent_id foreign keys are NOT ENFORCED in Databricks, so nothing
@@ -231,6 +269,8 @@ async function deleteAgent(id) {
     await db.query(`DELETE FROM ${table} WHERE agent_id = :id`, { id });
   }
   await db.query('DELETE FROM agents WHERE id = :id', { id });
+  // The agent's audit events are deliberately kept — the log outlives the agent.
+  await audit.record([{ action: 'agent_deleted', actor, agentId: id, agentName: existing.name }]);
   return true;
 }
 

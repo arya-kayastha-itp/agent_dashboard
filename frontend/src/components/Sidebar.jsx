@@ -4,6 +4,7 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
 import FactCheckIcon from '@mui/icons-material/FactCheck';
 import GroupsIcon from '@mui/icons-material/Groups';
+import HistoryIcon from '@mui/icons-material/History';
 import HomeIcon from '@mui/icons-material/Home';
 import InsightsIcon from '@mui/icons-material/Insights';
 import LightModeIcon from '@mui/icons-material/LightMode';
@@ -47,6 +48,7 @@ const NAV_ICONS = {
   '/insights': InsightsIcon,
   '/daily-sheet': AssignmentIcon,
   '/teams': GroupsIcon,
+  '/audit': HistoryIcon,
   '/finops/pricing': PriceChangeIcon,
   '/finops/thresholds': NotificationsActiveIcon,
 };

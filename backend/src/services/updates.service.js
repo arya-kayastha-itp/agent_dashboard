@@ -1,9 +1,26 @@
 const crypto = require('crypto');
 const db = require('../db/databricksClient');
 const { AGENT_SELECT } = require('./agents.service');
+const audit = require('./audit.service');
 
 function todayDateString() {
   return new Date().toISOString().slice(0, 10);
+}
+
+// What an agent showed before a direct update, for the audit log's before/after.
+const CURRENT_VALUES = 'id, name, current_status as status, current_progress as progress, current_status_description as statusDescription';
+const UPDATE_FIELDS = ['status', 'progress', 'statusDescription'];
+
+// One audit event per agent whose status, progress or notes actually changed —
+// re-saving a sheet row unchanged isn't a change.
+function updateEvents(befores, rows, { actor, date, via }) {
+  const beforeById = new Map(befores.map((before) => [before.id, before]));
+  return rows.flatMap((row) => {
+    const before = beforeById.get(row.agentId);
+    const changes = audit.diff(before, row, UPDATE_FIELDS);
+    if (!before || !Object.keys(changes).length) return [];
+    return [{ action: 'update_recorded', actor, agentId: row.agentId, agentName: before.name, details: { changes, updateDate: date, ...(via ? { via } : {}) } }];
+  });
 }
 
 // Upserts one day's update for one agent (via MERGE, since Delta has no
@@ -12,12 +29,14 @@ function todayDateString() {
 // cross-table transactions, so these two writes aren't atomic with each
 // other. Reused by the single-update endpoint, the batch daily-sheet
 // endpoint, and (in a future phase) any automated webhook/API ingestion path.
-// `recordedBy` is the account making the change (the Agent Manager here —
+// `actor` is the signed-in account making the change (the Agent Manager here —
 // approved submissions are written by submissions.service.js instead).
-async function recordUpdate({ agentId, updateDate, status, progress, statusDescription, source = 'manual', recordedBy = null }) {
+async function recordUpdate({ agentId, updateDate, status, progress, statusDescription, source = 'manual', actor = null }) {
   const date = updateDate || todayDateString();
   const now = new Date().toISOString();
   const newId = crypto.randomUUID();
+  const recordedBy = actor?.id ?? null;
+  const before = await db.queryOne(`SELECT ${CURRENT_VALUES} FROM agents WHERE id = :agentId`, { agentId });
 
   await db.query(
     `MERGE INTO agent_updates AS u
@@ -50,6 +69,7 @@ async function recordUpdate({ agentId, updateDate, status, progress, statusDescr
   );
 
   const agent = await db.queryOne(`SELECT ${AGENT_SELECT} FROM agents WHERE id = :agentId`, { agentId });
+  await audit.record(updateEvents(before ? [before] : [], [{ agentId, status, progress, statusDescription }], { actor, date }));
 
   return { update, agent };
 }
@@ -66,20 +86,20 @@ async function recordUpdateStandalone(payload) {
 // history row. If a later statement still fails, the history rows are already
 // written but agents' current_* fields aren't (Delta has no cross-table
 // transactions); re-submitting is safe since both MERGEs are idempotent.
-async function recordBatch({ updateDate, entries, source = 'manual', recordedBy = null }) {
+async function recordBatch({ updateDate, entries, source = 'manual', actor = null }) {
   const date = updateDate || todayDateString();
   const now = new Date().toISOString();
 
   // One row per agent — MERGE rejects a source with duplicate match keys.
   const rows = [...new Map(entries.map((entry) => [entry.agentId, entry])).values()];
 
-  const params = { date, now, source, recordedBy };
+  const params = { date, now, source, recordedBy: actor?.id ?? null };
   const idPlaceholders = rows.map((row, i) => {
     params[`agentId${i}`] = row.agentId;
     return `:agentId${i}`;
   });
 
-  const existing = await db.query(`SELECT id FROM agents WHERE id IN (${idPlaceholders.join(', ')})`, params);
+  const existing = await db.query(`SELECT ${CURRENT_VALUES} FROM agents WHERE id IN (${idPlaceholders.join(', ')})`, params);
   if (existing.length !== rows.length) {
     const known = new Set(existing.map((r) => r.id));
     const err = new Error(`${rows.length - known.size} agent(s) no longer exist — refresh the sheet and try again.`);
@@ -123,6 +143,7 @@ async function recordBatch({ updateDate, entries, source = 'manual', recordedBy 
   );
 
   const updatedAgents = await db.query(`SELECT ${AGENT_SELECT} FROM agents WHERE id IN (${idPlaceholders.join(', ')})`, params);
+  await audit.record(updateEvents(existing, rows, { actor, date, via: 'daily_sheet' }));
   return { savedCount: rows.length, updatedAgents };
 }
 

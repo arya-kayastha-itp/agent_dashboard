@@ -8,6 +8,7 @@ import AddTeamMemberModal from './components/AddTeamMemberModal';
 import Sidebar from './components/Sidebar';
 import AgentDetailPage from './pages/AgentDetailPage';
 import AllAgentsPage from './pages/AllAgentsPage';
+import AuditLogPage from './pages/AuditLogPage';
 import DailyUpdateSheetPage from './pages/DailyUpdateSheetPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import HomePage from './pages/HomePage';
@@ -68,6 +69,7 @@ export default function App({ onToggleTheme, themeMode }) {
                       <Route path="/daily-sheet" element={restricted('/daily-sheet', <DailyUpdateSheetPage />)} />
                       <Route path="/teams" element={restricted('/teams', <TeamsPage />)} />
                       <Route path="/review" element={restricted('/review', <ReviewInboxPage />)} />
+                      <Route path="/audit" element={restricted('/audit', <AuditLogPage />)} />
                       <Route path="/agents/:id" element={<AgentDetailPage />} />
                       <Route path="/finops/pricing" element={restricted('/finops/pricing', <PricingAdminPage />)} />
                       <Route path="/finops/thresholds" element={restricted('/finops/thresholds', <ThresholdsAdminPage />)} />

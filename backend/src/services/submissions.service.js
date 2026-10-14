@@ -1,6 +1,9 @@
 const crypto = require('crypto');
 const db = require('../db/databricksClient');
 const { todayDateString } = require('./updates.service');
+const audit = require('./audit.service');
+
+const PROPOSED_FIELDS = ['status', 'progress', 'statusDescription', 'eta'];
 
 function httpError(status, code, message) {
   const err = new Error(message);
@@ -60,7 +63,7 @@ function idList(prefix, ids, params) {
 // from the same person replaces their earlier pending one, so the reviewer
 // only ever sees each person's latest word.
 async function submitUpdate({ agentId, status, progress, statusDescription, eta }, user) {
-  const agent = await db.queryOne('SELECT id FROM agents WHERE id = :agentId', { agentId });
+  const agent = await db.queryOne('SELECT id, name FROM agents WHERE id = :agentId', { agentId });
   if (!agent) throw httpError(404, 'NOT_FOUND', 'Agent not found');
 
   const assigned = await db.queryOne(
@@ -101,6 +104,15 @@ async function submitUpdate({ agentId, status, progress, statusDescription, eta 
     },
   );
 
+  await audit.record([
+    {
+      action: 'update_submitted',
+      actor: user,
+      agentId,
+      agentName: agent.name,
+      details: { submissionId: id, proposed: { status, progress, statusDescription: statusDescription ?? null, eta: eta ?? null } },
+    },
+  ]);
   return getSubmission(id);
 }
 
@@ -135,10 +147,15 @@ async function listSubmissions({ reviewStatus, agentId } = {}, user, { allUsers 
 async function loadPending(ids) {
   const params = {};
   const rows = await db.query(
-    `SELECT id, agent_id as agentId, submitted_by as submittedBy, submitted_at as submittedAt,
-            CAST(update_date AS STRING) as updateDate, status, progress,
-            status_description as statusDescription, CAST(eta AS STRING) as eta, review_status as reviewStatus
-     FROM update_submissions WHERE id IN (${idList('id', ids, params)})`,
+    `SELECT s.id, s.agent_id as agentId, a.name as agentName, s.submitted_by as submittedBy,
+            COALESCE(sm.name, 'Former team member') as submitterName, s.submitted_at as submittedAt,
+            CAST(s.update_date AS STRING) as updateDate, s.status, s.progress,
+            s.status_description as statusDescription, CAST(s.eta AS STRING) as eta, s.review_status as reviewStatus
+     FROM update_submissions s
+     JOIN agents a ON a.id = s.agent_id
+     LEFT JOIN users su ON su.id = s.submitted_by
+     LEFT JOIN team_members sm ON sm.id = su.team_member_id
+     WHERE s.id IN (${idList('id', ids, params)})`,
     params,
   );
   if (rows.length !== ids.length) {
@@ -229,12 +246,21 @@ async function applyApprovals(approvals, reviewer) {
   );
 
   // An agent's newest history day decides whether this approval is "current".
+  const agentIds = items.map((item) => item.submission.agentId);
   const latestParams = {};
   const latest = await db.query(
     `SELECT agent_id as agentId, CAST(MAX(update_date) AS STRING) as latestDate
-     FROM agent_updates WHERE agent_id IN (${idList('a', items.map((item) => item.submission.agentId), latestParams)})
+     FROM agent_updates WHERE agent_id IN (${idList('a', agentIds, latestParams)})
      GROUP BY agent_id`,
     latestParams,
+  );
+  // What the dashboard showed before, for the audit log's before/after.
+  const beforeParams = {};
+  const befores = await db.query(
+    `SELECT id, current_status as status, current_progress as progress,
+            current_status_description as statusDescription, CAST(eta AS STRING) as eta
+     FROM agents WHERE id IN (${idList('b', agentIds, beforeParams)})`,
+    beforeParams,
   );
   const latestByAgent = new Map(latest.map((row) => [row.agentId, row.latestDate]));
   items.forEach(({ submission }, i) => {
@@ -257,6 +283,36 @@ async function applyApprovals(approvals, reviewer) {
        eta = COALESCE(s.eta, a.eta),
        updated_at = CAST(:now AS TIMESTAMP)`,
     params,
+  );
+
+  // Superseded leftovers aren't logged; each applied approval records what
+  // changed on the dashboard and which fields the reviewer edited.
+  const beforeById = new Map(befores.map((before) => [before.id, before]));
+  await audit.record(
+    items.map(({ submission, values, comment }, i) => {
+      const before = beforeById.get(submission.agentId);
+      const isCurrent = params[`current${i}`];
+      const after = {
+        ...before,
+        ...(isCurrent ? { status: values.status, progress: values.progress, statusDescription: values.statusDescription } : {}),
+        ...(values.eta ? { eta: values.eta } : {}),
+      };
+      return {
+        action: 'update_approved',
+        actor: reviewer,
+        agentId: submission.agentId,
+        agentName: submission.agentName,
+        subject: { id: submission.submittedBy, name: submission.submitterName },
+        details: {
+          submissionId: submission.id,
+          updateDate: submission.updateDate,
+          changes: audit.diff(before, after, PROPOSED_FIELDS),
+          editedByReviewer: Object.keys(audit.diff(submission, values, PROPOSED_FIELDS)),
+          appliedToCurrent: isCurrent,
+          comment: comment ?? null,
+        },
+      };
+    }),
   );
 
   return { approvedCount: items.length };
@@ -290,7 +346,7 @@ async function approveSubmissions(ids, reviewer) {
 // "Request changes" and "reject" both close the submission with a comment;
 // the difference is what the submitter is told to do next.
 async function closeSubmission(id, { decision, comment }, reviewer) {
-  await loadPending([id]);
+  const [submission] = await loadPending([id]);
   await db.query(
     `UPDATE update_submissions
      SET review_status = :decision, review_comment = :comment, reviewed_by = :reviewerId,
@@ -298,6 +354,20 @@ async function closeSubmission(id, { decision, comment }, reviewer) {
      WHERE id = :id AND review_status = 'pending'`,
     { id, decision, comment, reviewerId: reviewer.id, now: new Date().toISOString() },
   );
+  await audit.record([
+    {
+      action: decision === 'rejected' ? 'update_rejected' : 'changes_requested',
+      actor: reviewer,
+      agentId: submission.agentId,
+      agentName: submission.agentName,
+      subject: { id: submission.submittedBy, name: submission.submitterName },
+      details: {
+        submissionId: id,
+        comment,
+        proposed: { status: submission.status, progress: submission.progress, statusDescription: submission.statusDescription, eta: submission.eta },
+      },
+    },
+  ]);
   return getSubmission(id);
 }
 
