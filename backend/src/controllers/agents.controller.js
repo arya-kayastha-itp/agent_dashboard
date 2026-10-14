@@ -2,11 +2,14 @@ const agentsService = require('../services/agents.service');
 const updatesService = require('../services/updates.service');
 const insightsService = require('../services/insights.service');
 const aiNarrativeService = require('../services/ai-narrative.service');
+const { PERSONAS } = require('../config/personas');
 
 async function listAgents(req, res, next) {
   try {
     const { status } = req.query;
-    const agents = await agentsService.listAgents({ status });
+    // Contributors only ever see the agents they're assigned to.
+    const assignedTo = req.user.persona === PERSONAS.CONTRIBUTOR ? req.user.teamMemberId : undefined;
+    const agents = await agentsService.listAgents({ status, assignedTo });
     res.json(agents);
   } catch (err) {
     next(err);

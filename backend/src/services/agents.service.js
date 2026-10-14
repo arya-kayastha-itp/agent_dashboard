@@ -68,16 +68,30 @@ async function insertAssignees(agentId, teamMemberIds, now) {
   await db.query(`INSERT INTO agent_assignees (agent_id, team_member_id, created_at) VALUES ${values.join(', ')}`, params);
 }
 
-async function listAgents({ status } = {}) {
+// `assignedTo` (a team member id) narrows the list to that person's agents —
+// how contributors see only what they work on.
+async function listAgents({ status, assignedTo } = {}) {
+  const clauses = [];
   const params = {};
-  let sql = `SELECT ${AGENT_SELECT} FROM agents`;
   if (status) {
-    sql += ' WHERE current_status = :status';
+    clauses.push('current_status = :status');
     params.status = status;
   }
-  sql += ' ORDER BY sort_order ASC, created_at ASC';
-  const agents = await db.query(sql, params);
-  return attachAssignees(agents, { all: true });
+  if (assignedTo) {
+    clauses.push('id IN (SELECT agent_id FROM agent_assignees WHERE team_member_id = :assignedTo)');
+    params.assignedTo = assignedTo;
+  }
+  const where = clauses.length ? ` WHERE ${clauses.join(' AND ')}` : '';
+  const agents = await db.query(`SELECT ${AGENT_SELECT} FROM agents${where} ORDER BY sort_order ASC, created_at ASC`, params);
+  return attachAssignees(agents, { all: !assignedTo });
+}
+
+async function isAssigned(agentId, teamMemberId) {
+  const row = await db.queryOne('SELECT agent_id FROM agent_assignees WHERE agent_id = :agentId AND team_member_id = :teamMemberId', {
+    agentId,
+    teamMemberId,
+  });
+  return Boolean(row);
 }
 
 async function getAgentById(id) {
@@ -239,4 +253,4 @@ async function reorderAgents(ids) {
   return listAgents({});
 }
 
-module.exports = { listAgents, getAgentById, createAgent, updateAgentMetadata, deleteAgent, reorderAgents, AGENT_SELECT };
+module.exports = { listAgents, isAssigned, getAgentById, createAgent, updateAgentMetadata, deleteAgent, reorderAgents, AGENT_SELECT };

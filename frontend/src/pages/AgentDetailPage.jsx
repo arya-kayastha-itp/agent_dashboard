@@ -76,6 +76,25 @@ export default function AgentDetailPage() {
 
   usePageTitle(agent?.name);
 
+  // Deleted, a bad link, or (for contributors) an agent they aren't assigned to.
+  if (agents && !agent) {
+    return (
+      <Box>
+        <Alert
+          severity="info"
+          sx={{ mt: 2 }}
+          action={
+            <Button component={RouterLink} to="/" color="inherit" size="small">
+              Back to Home
+            </Button>
+          }
+        >
+          This agent isn&apos;t available — it may have been deleted, or it isn&apos;t one of the agents assigned to you.
+        </Alert>
+      </Box>
+    );
+  }
+
   return (
     <Box>
       <Box sx={{ position: 'sticky', top: 0, zIndex: 2, bgcolor: 'background.default', py: 1.5, mb: 1.5 }}>

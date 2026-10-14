@@ -12,13 +12,13 @@ Five failed sign-ins lock an account for 15 minutes. Deactivating someone, chang
 
 | Persona | Can see | Can do |
 |---|---|---|
-| **Contributor** | All agents | Send updates for the agents they're assigned to, for the Agent Manager to review |
+| **Contributor** | My Agents — only the agents they're assigned to (enforced by the API: other agents answer 404, and portfolio insights and the team roster are closed to them) | Send updates for those agents, for the Agent Manager to review |
 | **Executive** | Dashboard (incl. Portfolio Insights) | View-only |
 | **Agent Manager** | Dashboard (no Portfolio Insights), Review, Daily Update Sheet, Teams | Review contributors' updates, add agents, edit agent metadata, log daily updates directly, invite people and manage their access |
 
 ## Updates and review
 
-An agent's assignees send updates (status, progress, notes, and optionally a new target date) from the agent's page. Nothing on the dashboard changes until the Agent Manager approves on the **Review** page, where each update is shown next to the agent's current values. The reviewer can approve, edit before approving, ask for changes, or not accept — the last two need a comment, which the assignee sees on the agent's page. Several updates can be approved at once.
+An agent's assignees send updates (status, progress, notes, and optionally a new target date) from their My Agents home or the agent's page. Nothing on the dashboard changes until the Agent Manager approves on the **Review** page, where each update is shown next to the agent's current values. The reviewer can approve, edit before approving, ask for changes, or not accept — the last two need a comment, which the assignee sees on the agent's page. Several updates can be approved at once.
 
 - While an update waits, the agent shows a "Pending review" badge and keeps its last approved values.
 - Sending a new update replaces your own earlier pending one. Approving one update for an agent closes any older pending ones for it.

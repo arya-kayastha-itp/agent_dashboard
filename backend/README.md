@@ -73,6 +73,10 @@ Request bodies are validated with Zod schemas in `validators/`, applied via `mid
 
 `services/users.service.js` owns accounts (`users` table, one per team member) and one-time links (`user_tokens`, stored as SHA-256 hashes). Passwords are scrypt hashes (`services/credentials.service.js`). Session JWTs carry the account id and its `token_version`; `middleware/auth.js` checks both against the account on every request (cached for 60 seconds, evicted on every account write), so deactivation, role changes and password resets end sessions immediately. The persona on `req.user` comes from the account's role, never from the token. `npm run users:link -- <email>` prints a set-password link for an existing account — that's how the first Agent Manager gets in.
 
+## What contributors can see
+
+Contributors only see the agents they're assigned to. `GET /api/agents` filters to their assignments, and `middleware/agentAccess.js` (`requireAgentAccess`) answers 404 for any other `/api/agents/:id…` read, so the API doesn't confirm the agent exists. Portfolio insights (`/api/insights/*`) and the team roster (`/api/team-members`) cover everyone, so they're closed to contributors. Every other persona sees all agents as before.
+
 ## Update submissions and review
 
 `services/submissions.service.js` owns `update_submissions`: contributors' proposed updates and the Agent Manager's decisions (`pending` → `approved` / `changes_requested` / `rejected`, or `superseded`). Only an agent's assignees can submit (checked against `agent_assignees`). Approval — single, with optional reviewer edits, or bulk — runs through one `applyApprovals` that does a fixed number of `MERGE`s however many updates are approved: mark approved, supersede older pending ones per agent, write the history row for the submission's own `update_date` (`source = 'submission'`, `recorded_by` = submitter, `submission_id`), then refresh the agent's `current_*` fields only when no later history day exists. `agent_updates.recorded_by` is also set for the Agent Manager's direct updates. Every agent query returns `pendingReviewCount` (a correlated subquery in `AGENT_SELECT`).

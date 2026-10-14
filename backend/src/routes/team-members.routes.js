@@ -7,10 +7,12 @@ const { createTeamMemberSchema } = require('../validators/team-member.schema');
 
 const router = express.Router();
 
-router.use(authenticate);
+// The roster lists everyone and which agents they're on, and only the Agent
+// Manager's screens use it (Teams page, assignee picker).
+router.use(authenticate, requirePersona(PERSONAS.AGENT_MANAGER));
 
 router.get('/', controller.listTeamMembers);
-router.post('/', requirePersona(PERSONAS.AGENT_MANAGER), validateBody(createTeamMemberSchema), controller.createTeamMember);
-router.delete('/:id', requirePersona(PERSONAS.AGENT_MANAGER), controller.deleteTeamMember);
+router.post('/', validateBody(createTeamMemberSchema), controller.createTeamMember);
+router.delete('/:id', controller.deleteTeamMember);
 
 module.exports = router;

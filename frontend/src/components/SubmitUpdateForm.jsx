@@ -26,7 +26,7 @@ function reviewerEdits(submission) {
   ].filter(Boolean);
 }
 
-function LastSubmission({ submission }) {
+export function LastSubmission({ submission }) {
   if (!submission || submission.reviewStatus === 'superseded') return null;
   const reviewer = submission.reviewerName || 'The Agent Manager';
   const comment = submission.reviewComment ? ` “${submission.reviewComment}”` : '';
@@ -74,11 +74,14 @@ function startingValues(agent, latest) {
   };
 }
 
-function SubmitForm({ agent, latest }) {
+// `inline` lays the fields out across a full-width table row (My Agents) with
+// a Cancel button; otherwise it stacks for the agent page's side column.
+export function SubmitForm({ agent, latest, inline = false, onCancel, onSent }) {
   const createSubmission = useCreateSubmission();
   const showToast = useToast();
   const [values, setValues] = useState(() => startingValues(agent, latest));
   const set = (field) => (value) => setValues((prev) => ({ ...prev, [field]: value }));
+  const size = inline ? 'small' : 'medium';
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -93,57 +96,93 @@ function SubmitForm({ agent, latest }) {
         eta: values.eta && values.eta !== currentEta ? values.eta : null,
       });
       showToast('Sent to the Agent Manager for review.', 'success');
+      onSent?.();
     } catch (err) {
       showToast(err?.response?.data?.error?.message || 'Failed to send your update. Please try again.', 'error');
     }
   };
 
+  const statusField = (
+    <TextField select label="Status" size={size} fullWidth value={values.status} onChange={(e) => set('status')(e.target.value)}>
+      {STATUS_VALUES.map((value) => (
+        <MenuItem key={value} value={value}>
+          {value}
+        </MenuItem>
+      ))}
+    </TextField>
+  );
+  const etaField = (
+    <TextField
+      label={FIELD_LABELS.eta}
+      type="date"
+      size={size}
+      fullWidth
+      InputLabelProps={{ shrink: true }}
+      inputProps={{ onClick: openNativePicker }}
+      value={values.eta}
+      onChange={(e) => set('eta')(e.target.value)}
+    />
+  );
+  const progressField = (
+    <div>
+      <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.72rem', fontWeight: 800, lineHeight: 1.4, mb: 0.75 }}>
+        Progress
+      </Typography>
+      <ProgressSlider value={values.progress} onChange={set('progress')} size={size} />
+    </div>
+  );
+  const notesField = (
+    <TextField
+      label={FIELD_LABELS.statusDescription}
+      helperText={inline ? undefined : "What's happening, in plain language"}
+      size={size}
+      fullWidth
+      multiline
+      minRows={2}
+      value={values.statusDescription}
+      onChange={(e) => set('statusDescription')(e.target.value)}
+      sx={inline ? { gridColumn: '1 / -1' } : undefined}
+    />
+  );
+  const sendButton = (
+    <Button type="submit" size={size} variant="contained" disabled={createSubmission.isPending}>
+      {createSubmission.isPending ? 'Sending…' : 'Send for review'}
+    </Button>
+  );
+
+  if (inline) {
+    return (
+      <Box component="form" onSubmit={handleSubmit}>
+        <Stack spacing={2}>
+          <LastSubmission submission={latest} />
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '220px 200px minmax(0, 1fr)' }, gap: 2.5, alignItems: 'end' }}>
+            {statusField}
+            {etaField}
+            {progressField}
+            {notesField}
+          </Box>
+          <Stack direction="row" spacing={1} justifyContent="flex-end">
+            <Button size="small" onClick={onCancel} disabled={createSubmission.isPending}>
+              Cancel
+            </Button>
+            {sendButton}
+          </Stack>
+        </Stack>
+      </Box>
+    );
+  }
+
   return (
     <Box component="form" onSubmit={handleSubmit}>
       <Stack spacing={2}>
         <LastSubmission submission={latest} />
-
         <Stack direction="row" spacing={2}>
-          <TextField select label="Status" fullWidth value={values.status} onChange={(e) => set('status')(e.target.value)}>
-            {STATUS_VALUES.map((value) => (
-              <MenuItem key={value} value={value}>
-                {value}
-              </MenuItem>
-            ))}
-          </TextField>
-          <TextField
-            label={FIELD_LABELS.eta}
-            type="date"
-            fullWidth
-            InputLabelProps={{ shrink: true }}
-            inputProps={{ onClick: openNativePicker }}
-            value={values.eta}
-            onChange={(e) => set('eta')(e.target.value)}
-          />
+          {statusField}
+          {etaField}
         </Stack>
-
-        <div>
-          <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.72rem', fontWeight: 800, lineHeight: 1.4, mb: 0.75 }}>
-            Progress
-          </Typography>
-          <ProgressSlider value={values.progress} onChange={set('progress')} />
-        </div>
-
-        <TextField
-          label={FIELD_LABELS.statusDescription}
-          helperText="What's happening, in plain language"
-          fullWidth
-          multiline
-          minRows={2}
-          value={values.statusDescription}
-          onChange={(e) => set('statusDescription')(e.target.value)}
-        />
-
-        <Box>
-          <Button type="submit" variant="contained" disabled={createSubmission.isPending}>
-            {createSubmission.isPending ? 'Sending…' : 'Send for review'}
-          </Button>
-        </Box>
+        {progressField}
+        {notesField}
+        <Box>{sendButton}</Box>
       </Stack>
     </Box>
   );
