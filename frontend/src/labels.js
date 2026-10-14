@@ -29,6 +29,14 @@ export const PERSONA_DESCRIPTIONS = {
   FINOPS: 'Pricing, alert rules and cost views',
 };
 
+export const REVIEW_STATUS_LABELS = {
+  pending: 'Waiting for review',
+  approved: 'Approved',
+  changes_requested: 'Changes requested',
+  rejected: 'Not accepted',
+  superseded: 'Replaced',
+};
+
 export const ACCOUNT_STATUS_LABELS = {
   invited: 'Invited',
   active: 'Active',

@@ -2,6 +2,7 @@ import AssignmentIcon from '@mui/icons-material/Assignment';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
+import FactCheckIcon from '@mui/icons-material/FactCheck';
 import GroupsIcon from '@mui/icons-material/Groups';
 import HomeIcon from '@mui/icons-material/Home';
 import InsightsIcon from '@mui/icons-material/Insights';
@@ -10,6 +11,7 @@ import MenuIcon from '@mui/icons-material/Menu';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
 import PriceChangeIcon from '@mui/icons-material/PriceChange';
 import StorefrontIcon from '@mui/icons-material/Storefront';
+import Badge from '@mui/material/Badge';
 import Box from '@mui/material/Box';
 import ButtonBase from '@mui/material/ButtonBase';
 import Divider from '@mui/material/Divider';
@@ -27,8 +29,10 @@ import useMediaQuery from '@mui/material/useMediaQuery';
 import { Fragment, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { PERSONA_LABELS } from '../labels';
+import { useSubmissions } from '../hooks/useSubmissions';
 import { NAV_ITEMS, SHOW_ALERT_BELL } from '../persona/navConfig';
 import { usePersona } from '../persona/PersonaContext';
+import { canReviewUpdates } from '../persona/permissions';
 import AiGarageLogo from './AiGarageLogo';
 import AlertBell from './AlertBell';
 
@@ -38,6 +42,7 @@ const COLLAPSE_KEY = 'agent-dashboard.sidebarCollapsed';
 
 const NAV_ICONS = {
   '/': HomeIcon,
+  '/review': FactCheckIcon,
   '/marketplace': StorefrontIcon,
   '/insights': InsightsIcon,
   '/daily-sheet': AssignmentIcon,
@@ -85,6 +90,9 @@ export default function Sidebar({ onToggleTheme, themeMode }) {
   const location = useLocation();
   const theme = useTheme();
   const isNarrow = useMediaQuery(theme.breakpoints.down('md'));
+  // Same query (and cache) as the Review page, so the count stays in step with it.
+  const { data: pendingReviews } = useSubmissions({ status: 'pending' }, { enabled: canReviewUpdates(persona) });
+  const pendingReviewCount = pendingReviews?.length || 0;
 
   const toggleCollapsed = () => {
     setCollapsed((prev) => {
@@ -161,7 +169,13 @@ export default function Sidebar({ onToggleTheme, themeMode }) {
                 color: isActive ? 'var(--g-accent-text)' : 'inherit',
               }}
             >
-              <Icon sx={{ fontSize: 18 }} />
+              {item.path === '/review' ? (
+                <Badge badgeContent={pendingReviewCount} color="primary" max={99} sx={{ '& .MuiBadge-badge': { fontSize: '0.6rem', height: 16, minWidth: 16 } }}>
+                  <Icon sx={{ fontSize: 18 }} />
+                </Badge>
+              ) : (
+                <Icon sx={{ fontSize: 18 }} />
+              )}
             </ListItemIcon>
             {!showRail && (
               <ListItemText

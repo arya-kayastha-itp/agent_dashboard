@@ -25,8 +25,10 @@ import HistoryChart from '../components/HistoryChart';
 import InfoTooltip from '../components/InfoTooltip';
 import InsightsPanel from '../components/InsightsPanel';
 import MarketplaceTag from '../components/MarketplaceTag';
+import PendingReviewChip from '../components/PendingReviewChip';
 import ProgressRing from '../components/ProgressRing';
 import StatusBadge from '../components/StatusBadge';
+import SubmitUpdateForm from '../components/SubmitUpdateForm';
 import { formatAssignees } from '../formatters';
 import { HEALTH_LEVELS, HEALTH_LEVEL_META } from '../healthLevel';
 import { useAgentHistory } from '../hooks/useAgentHistory';
@@ -34,7 +36,7 @@ import { useAgents } from '../hooks/useAgents';
 import { usePageTitle } from '../hooks/usePageTitle';
 import { FIELD_LABELS } from '../labels';
 import { usePersona } from '../persona/PersonaContext';
-import { canEditAgents } from '../persona/permissions';
+import { canEditAgents, canReviewUpdates, canSubmitUpdate } from '../persona/permissions';
 
 // One labelled fact in the hero card (Owner / Target date / Last updated).
 function MetaTile({ label, info, children }) {
@@ -61,13 +63,15 @@ export default function AgentDetailPage() {
   const navigate = useNavigate();
   const { data: agents } = useAgents();
   const { data: history, isLoading, isError, refetch } = useAgentHistory(id);
-  const { persona } = usePersona();
+  const { persona, user } = usePersona();
   const [editOpen, setEditOpen] = useState(false);
 
   const agent = agents?.find((a) => a.id === id);
   const health = agent ? computeAgentHealth(agent) : null;
   const healthMeta = health ? HEALTH_LEVEL_META[health.level] : null;
   const canEdit = canEditAgents(persona);
+  const canSubmit = canSubmitUpdate(persona, agent, user);
+  const waitingForReview = canReviewUpdates(persona) ? agent?.pendingReviewCount || 0 : 0;
   const showHealth = health && health.level !== HEALTH_LEVELS.NEUTRAL;
 
   usePageTitle(agent?.name);
@@ -139,6 +143,7 @@ export default function AgentDetailPage() {
 
             <Stack alignItems={{ xs: 'flex-start', md: 'flex-end' }} spacing={2.25}>
               <Stack direction="row" spacing={0.5} alignItems="center">
+                <PendingReviewChip agent={agent} sx={{ mr: 0.5 }} />
                 <StatusBadge status={agent.currentStatus} />
                 <DeleteAgentButton agent={agent} onDeleted={() => navigate('/')} />
               </Stack>
@@ -203,16 +208,32 @@ export default function AgentDetailPage() {
         </Paper>
       )}
 
+      {waitingForReview > 0 && (
+        <Alert
+          severity="warning"
+          sx={{ mb: 3 }}
+          action={
+            <Button component={RouterLink} to="/review" color="inherit" size="small">
+              Review
+            </Button>
+          }
+        >
+          {waitingForReview === 1 ? 'An update from an assignee is' : `${waitingForReview} updates from assignees are`} waiting for your
+          review.
+        </Alert>
+      )}
+
       <Box
         sx={{
           display: 'grid',
-          gridTemplateColumns: { xs: '1fr', lg: agent && canEdit ? '400px minmax(0, 1fr)' : '1fr' },
+          gridTemplateColumns: { xs: '1fr', lg: agent && (canEdit || canSubmit) ? '400px minmax(0, 1fr)' : '1fr' },
           gap: 3,
           alignItems: 'start',
           mb: 3,
         }}
       >
         {agent && canEdit && <AgentUpdateForm agent={agent} />}
+        {agent && canSubmit && <SubmitUpdateForm agent={agent} />}
         {agent && <InsightsPanel agentId={id} />}
       </Box>
 

@@ -4,6 +4,8 @@ const { assertTeamMembersExist } = require('./team-members.service');
 
 // Assignees live in agent_assignees (one row per agent + team member), not on
 // this row — the legacy agents.assigned_to column is no longer read or written.
+// Every caller selects FROM agents (unaliased), which the pending-review count
+// relies on.
 const AGENT_SELECT = `
   id,
   name,
@@ -16,7 +18,8 @@ const AGENT_SELECT = `
   last_update_at as lastUpdateAt,
   sort_order as sortOrder,
   created_at as createdAt,
-  updated_at as updatedAt
+  updated_at as updatedAt,
+  (SELECT COUNT(*) FROM update_submissions s WHERE s.agent_id = agents.id AND s.review_status = 'pending') as pendingReviewCount
 `;
 
 // Map of agentId -> [{ id, name }] for the given agents, names A-Z. Pass no ids
@@ -88,7 +91,7 @@ async function getAgentById(id) {
 // its initial history entry are written sequentially; if a later write fails,
 // the earlier ones are rolled back manually so we never leave a half-created
 // agent behind.
-async function createAgent(data) {
+async function createAgent(data, actor) {
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
 
@@ -111,6 +114,7 @@ async function createAgent(data) {
     sortOrder,
     createdAt: now,
     updatedAt: now,
+    pendingReviewCount: 0,
   };
 
   await db.query(
@@ -121,14 +125,27 @@ async function createAgent(data) {
        (:id, :name, :description, CAST(:marketplaceDeployment AS BOOLEAN), CAST(:eta AS DATE), :currentStatus, :currentProgress,
         :currentStatusDescription, CAST(:lastUpdateAt AS TIMESTAMP), :sortOrder,
         CAST(:createdAt AS TIMESTAMP), CAST(:updatedAt AS TIMESTAMP))`,
-    agent,
+    {
+      id,
+      name: agent.name,
+      description: agent.description,
+      marketplaceDeployment: agent.marketplaceDeployment,
+      eta: agent.eta,
+      currentStatus: agent.currentStatus,
+      currentProgress: agent.currentProgress,
+      currentStatusDescription: agent.currentStatusDescription,
+      lastUpdateAt: now,
+      sortOrder,
+      createdAt: now,
+      updatedAt: now,
+    },
   );
 
   try {
     await insertAssignees(id, assigneeIds, now);
     await db.query(
-      `INSERT INTO agent_updates (id, agent_id, update_date, status, progress, status_description, source, created_at)
-       VALUES (:updateId, :agentId, CURRENT_DATE(), :status, :progress, :statusDescription, 'manual', CAST(:createdAt AS TIMESTAMP))`,
+      `INSERT INTO agent_updates (id, agent_id, update_date, status, progress, status_description, source, created_at, recorded_by, submission_id)
+       VALUES (:updateId, :agentId, CURRENT_DATE(), :status, :progress, :statusDescription, 'manual', CAST(:createdAt AS TIMESTAMP), :recordedBy, NULL)`,
       {
         updateId: crypto.randomUUID(),
         agentId: id,
@@ -136,6 +153,7 @@ async function createAgent(data) {
         progress: data.progress,
         statusDescription: data.statusDescription ?? null,
         createdAt: now,
+        recordedBy: actor?.id ?? null,
       },
     );
   } catch (err) {
@@ -194,7 +212,7 @@ async function deleteAgent(id) {
   // cascades on its own — clear the child rows first, or a deleted agent's
   // usage logs would keep counting toward the portfolio cost rollups.
   // Sequential for the same Delta write-conflict reason as reorderAgents.
-  for (const table of ['agent_updates', 'agent_assignees', 'api_usage_logs', 'finops_alerts', 'finops_thresholds']) {
+  for (const table of ['update_submissions', 'agent_updates', 'agent_assignees', 'api_usage_logs', 'finops_alerts', 'finops_thresholds']) {
     // eslint-disable-next-line no-await-in-loop
     await db.query(`DELETE FROM ${table} WHERE agent_id = :id`, { id });
   }

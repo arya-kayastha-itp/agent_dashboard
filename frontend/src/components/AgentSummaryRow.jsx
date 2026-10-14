@@ -6,6 +6,7 @@ import { formatAssignees } from '../formatters';
 import { HEALTH_LEVEL_META } from '../healthLevel';
 import AssigneeAvatars from './AssigneeAvatars';
 import MarketplaceTag from './MarketplaceTag';
+import PendingReviewChip from './PendingReviewChip';
 import ProgressBar from './ProgressBar';
 import StatusBadge from './StatusBadge';
 
@@ -67,7 +68,10 @@ export default function AgentSummaryRow({ agent, onNameClick, leading, trailing 
       </TableCell>
 
       <TableCell sx={{ py: CELL_PY, whiteSpace: 'nowrap' }}>
-        <StatusBadge status={agent.currentStatus} />
+        <Stack spacing={0.75} alignItems="flex-start">
+          <StatusBadge status={agent.currentStatus} />
+          <PendingReviewChip agent={agent} />
+        </Stack>
       </TableCell>
 
       {trailing !== undefined && (

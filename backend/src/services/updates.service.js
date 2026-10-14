@@ -12,7 +12,9 @@ function todayDateString() {
 // cross-table transactions, so these two writes aren't atomic with each
 // other. Reused by the single-update endpoint, the batch daily-sheet
 // endpoint, and (in a future phase) any automated webhook/API ingestion path.
-async function recordUpdate({ agentId, updateDate, status, progress, statusDescription, source = 'manual' }) {
+// `recordedBy` is the account making the change (the Agent Manager here —
+// approved submissions are written by submissions.service.js instead).
+async function recordUpdate({ agentId, updateDate, status, progress, statusDescription, source = 'manual', recordedBy = null }) {
   const date = updateDate || todayDateString();
   const now = new Date().toISOString();
   const newId = crypto.randomUUID();
@@ -22,10 +24,11 @@ async function recordUpdate({ agentId, updateDate, status, progress, statusDescr
      USING (SELECT CAST(:agentId AS STRING) AS agent_id, CAST(:date AS DATE) AS update_date) AS s
      ON u.agent_id = s.agent_id AND u.update_date = s.update_date
      WHEN MATCHED THEN UPDATE SET
-       status = :status, progress = :progress, status_description = :statusDescription, source = :source
-     WHEN NOT MATCHED THEN INSERT (id, agent_id, update_date, status, progress, status_description, source, created_at)
-       VALUES (:newId, s.agent_id, s.update_date, :status, :progress, :statusDescription, :source, CAST(:createdAt AS TIMESTAMP))`,
-    { agentId, date, status, progress, statusDescription: statusDescription ?? null, source, newId, createdAt: now },
+       status = :status, progress = :progress, status_description = :statusDescription, source = :source,
+       recorded_by = :recordedBy, submission_id = NULL
+     WHEN NOT MATCHED THEN INSERT (id, agent_id, update_date, status, progress, status_description, source, created_at, recorded_by, submission_id)
+       VALUES (:newId, s.agent_id, s.update_date, :status, :progress, :statusDescription, :source, CAST(:createdAt AS TIMESTAMP), :recordedBy, NULL)`,
+    { agentId, date, status, progress, statusDescription: statusDescription ?? null, source, newId, createdAt: now, recordedBy },
   );
 
   const update = await db.queryOne(
@@ -63,14 +66,14 @@ async function recordUpdateStandalone(payload) {
 // history row. If a later statement still fails, the history rows are already
 // written but agents' current_* fields aren't (Delta has no cross-table
 // transactions); re-submitting is safe since both MERGEs are idempotent.
-async function recordBatch({ updateDate, entries, source = 'manual' }) {
+async function recordBatch({ updateDate, entries, source = 'manual', recordedBy = null }) {
   const date = updateDate || todayDateString();
   const now = new Date().toISOString();
 
   // One row per agent — MERGE rejects a source with duplicate match keys.
   const rows = [...new Map(entries.map((entry) => [entry.agentId, entry])).values()];
 
-  const params = { date, now, source };
+  const params = { date, now, source, recordedBy };
   const idPlaceholders = rows.map((row, i) => {
     params[`agentId${i}`] = row.agentId;
     return `:agentId${i}`;
@@ -99,9 +102,10 @@ async function recordBatch({ updateDate, entries, source = 'manual' }) {
      USING (${sourceRows}) AS s
      ON u.agent_id = s.agent_id AND u.update_date = CAST(:date AS DATE)
      WHEN MATCHED THEN UPDATE SET
-       status = s.status, progress = s.progress, status_description = s.status_description, source = :source
-     WHEN NOT MATCHED THEN INSERT (id, agent_id, update_date, status, progress, status_description, source, created_at)
-       VALUES (s.new_id, s.agent_id, CAST(:date AS DATE), s.status, s.progress, s.status_description, :source, CAST(:now AS TIMESTAMP))`,
+       status = s.status, progress = s.progress, status_description = s.status_description, source = :source,
+       recorded_by = :recordedBy, submission_id = NULL
+     WHEN NOT MATCHED THEN INSERT (id, agent_id, update_date, status, progress, status_description, source, created_at, recorded_by, submission_id)
+       VALUES (s.new_id, s.agent_id, CAST(:date AS DATE), s.status, s.progress, s.status_description, :source, CAST(:now AS TIMESTAMP), :recordedBy, NULL)`,
     params,
   );
 

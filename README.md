@@ -12,9 +12,18 @@ Five failed sign-ins lock an account for 15 minutes. Deactivating someone, chang
 
 | Persona | Can see | Can do |
 |---|---|---|
-| **Contributor** | All agents | View-only for now (submitting updates comes next) |
+| **Contributor** | All agents | Send updates for the agents they're assigned to, for the Agent Manager to review |
 | **Executive** | Dashboard (incl. Portfolio Insights) | View-only |
-| **Agent Manager** | Dashboard (no Portfolio Insights), Daily Update Sheet, Teams | Add agents, edit agent metadata, log daily updates, invite people and manage their access |
+| **Agent Manager** | Dashboard (no Portfolio Insights), Review, Daily Update Sheet, Teams | Review contributors' updates, add agents, edit agent metadata, log daily updates directly, invite people and manage their access |
+
+## Updates and review
+
+An agent's assignees send updates (status, progress, notes, and optionally a new target date) from the agent's page. Nothing on the dashboard changes until the Agent Manager approves on the **Review** page, where each update is shown next to the agent's current values. The reviewer can approve, edit before approving, ask for changes, or not accept — the last two need a comment, which the assignee sees on the agent's page. Several updates can be approved at once.
+
+- While an update waits, the agent shows a "Pending review" badge and keeps its last approved values.
+- Sending a new update replaces your own earlier pending one. Approving one update for an agent closes any older pending ones for it.
+- An approved update becomes the history entry for the day it was sent, credited to the person who sent it. An old update approved late is recorded in history but never rolls the agent's current status back.
+- The Agent Manager's own updates (Daily Update Sheet, quick update, agent page) apply straight away, as before, and are now credited to them.
 | **FinOps** | Dashboard (incl. Portfolio Insights), Cost & Reliability, Pricing, Alert Rules | Manage model pricing and alert thresholds; sees the alert bell |
 
 Portfolio Insights is deliberately hidden from Agent Manager — it's aggregate cost/reliability data that isn't relevant to someone logging daily progress. Route-level access is enforced in `frontend/src/persona/` (`RequirePersonaRoute`, `navConfig.js`, `permissions.js`); this one component-level exception lives directly in `DashboardPage.jsx`.

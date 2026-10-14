@@ -15,6 +15,7 @@ import MarketplacePage from './pages/MarketplacePage';
 import PersonaLoginPage from './pages/PersonaLoginPage';
 import PortfolioInsightsPage from './pages/PortfolioInsightsPage';
 import PricingAdminPage from './pages/PricingAdminPage';
+import ReviewInboxPage from './pages/ReviewInboxPage';
 import SetPasswordPage from './pages/SetPasswordPage';
 import TeamsPage from './pages/TeamsPage';
 import ThresholdsAdminPage from './pages/ThresholdsAdminPage';
@@ -66,6 +67,7 @@ export default function App({ onToggleTheme, themeMode }) {
                       <Route path="/insights" element={restricted('/insights', <PortfolioInsightsPage />)} />
                       <Route path="/daily-sheet" element={restricted('/daily-sheet', <DailyUpdateSheetPage />)} />
                       <Route path="/teams" element={restricted('/teams', <TeamsPage />)} />
+                      <Route path="/review" element={restricted('/review', <ReviewInboxPage />)} />
                       <Route path="/agents/:id" element={<AgentDetailPage />} />
                       <Route path="/finops/pricing" element={restricted('/finops/pricing', <PricingAdminPage />)} />
                       <Route path="/finops/thresholds" element={restricted('/finops/thresholds', <ThresholdsAdminPage />)} />

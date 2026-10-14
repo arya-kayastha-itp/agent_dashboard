@@ -23,6 +23,7 @@ import ErrorAlert from '../components/ErrorAlert';
 import { computeAgentHealth, sortBySeverity, summarizeAgents } from '../agentHealth';
 import { useAgents, useReorderAgents } from '../hooks/useAgents';
 import { useTodayUpdates } from '../hooks/useDailySheet';
+import { useSubmissions } from '../hooks/useSubmissions';
 import { usePageTitle } from '../hooks/usePageTitle';
 
 // The Agent Manager's Home: a severity-sorted action queue instead of a card
@@ -36,6 +37,7 @@ export default function AgentManagerHomePage({ marketplaceOnly = false }) {
   usePageTitle(marketplaceOnly ? 'Marketplace' : 'Home');
   const { data: agents, isLoading, isError, refetch } = useAgents();
   const { data: todayRows } = useTodayUpdates();
+  const { data: pendingReviews } = useSubmissions({ status: 'pending' });
   const [healthFilter, setHealthFilter] = useState(null);
   const reorderAgents = useReorderAgents();
 
@@ -95,6 +97,11 @@ export default function AgentManagerHomePage({ marketplaceOnly = false }) {
         </Box>
         {!marketplaceOnly && (
           <Stack alignItems={{ xs: 'flex-start', sm: 'flex-end' }} spacing={1.25}>
+            {pendingReviews?.length > 0 && (
+              <Button component={RouterLink} to="/review" variant="contained">
+                Review {pendingReviews.length} update{pendingReviews.length === 1 ? '' : 's'} →
+              </Button>
+            )}
             <Button component={RouterLink} to="/daily-sheet" variant="outlined">
               Open Daily Update Sheet →
             </Button>

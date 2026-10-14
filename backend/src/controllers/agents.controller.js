@@ -27,7 +27,7 @@ async function getAgent(req, res, next) {
 
 async function createAgent(req, res, next) {
   try {
-    const agent = await agentsService.createAgent(req.validatedBody);
+    const agent = await agentsService.createAgent(req.validatedBody, req.user);
     res.status(201).json(agent);
   } catch (err) {
     next(err);

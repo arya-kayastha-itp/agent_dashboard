@@ -11,7 +11,7 @@ async function getToday(req, res, next) {
 
 async function createUpdate(req, res, next) {
   try {
-    const result = await updatesService.recordUpdateStandalone(req.validatedBody);
+    const result = await updatesService.recordUpdateStandalone({ ...req.validatedBody, recordedBy: req.user.id });
     res.status(201).json(result);
   } catch (err) {
     next(err);
@@ -20,7 +20,7 @@ async function createUpdate(req, res, next) {
 
 async function createBatch(req, res, next) {
   try {
-    const result = await updatesService.recordBatch(req.validatedBody);
+    const result = await updatesService.recordBatch({ ...req.validatedBody, recordedBy: req.user.id });
     res.status(201).json(result);
   } catch (err) {
     next(err);

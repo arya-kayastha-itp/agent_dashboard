@@ -15,6 +15,7 @@ import { usePersona } from '../persona/PersonaContext';
 import { canDeleteAgent } from '../persona/permissions';
 import DeleteAgentButton from './DeleteAgentButton';
 import MarketplaceTag from './MarketplaceTag';
+import PendingReviewChip from './PendingReviewChip';
 import ProgressBar from './ProgressBar';
 import StatusBadge from './StatusBadge';
 
@@ -71,9 +72,10 @@ export default function AgentCard({ agent, index = 0 }) {
             </Typography>
           </Stack>
 
-          <Box sx={{ mt: 1, flexShrink: 0 }}>
+          <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mt: 1, flexShrink: 0 }}>
             <StatusBadge status={agent.currentStatus} />
-          </Box>
+            <PendingReviewChip agent={agent} compact />
+          </Stack>
 
           <Box sx={{ mt: 1, flexShrink: 0 }}>
             {agent.assignees?.length > 0 && (

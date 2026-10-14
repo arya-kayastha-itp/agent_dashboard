@@ -9,6 +9,7 @@ const { EXECUTIVE, AGENT_MANAGER, FINOPS, CONTRIBUTOR } = PERSONAS;
 // secondary "Configure" menu instead of as equal-weight top-nav buttons.
 export const NAV_ITEMS = [
   { label: 'Home', path: '/', visibleTo: [EXECUTIVE, AGENT_MANAGER, FINOPS, CONTRIBUTOR] },
+  { label: 'Review', path: '/review', visibleTo: [AGENT_MANAGER] },
   { label: 'Marketplace', path: '/marketplace', visibleTo: [EXECUTIVE, AGENT_MANAGER] },
   { label: 'Metrics', path: '/insights', visibleTo: [EXECUTIVE] },
   { label: 'Daily Update Sheet', path: '/daily-sheet', visibleTo: [AGENT_MANAGER] },

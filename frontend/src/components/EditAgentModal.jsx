@@ -5,9 +5,9 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
-import { format } from 'date-fns';
 import { useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
+import { toDateInputValue } from '../formatters';
 import { useUpdateAgent } from '../hooks/useAgents';
 import { FIELD_LABELS } from '../labels';
 import { openNativePicker } from '../nativePicker';
@@ -16,15 +16,6 @@ import MarketplaceToggle from './MarketplaceToggle';
 import { useToast } from './ToastProvider';
 
 const FORM_ID = 'edit-agent-form';
-
-function toDateInputValue(eta) {
-  if (!eta) return '';
-  try {
-    return format(new Date(eta), 'yyyy-MM-dd');
-  } catch {
-    return '';
-  }
-}
 
 export default function EditAgentModal({ open, onClose, agent }) {
   const updateAgent = useUpdateAgent();
