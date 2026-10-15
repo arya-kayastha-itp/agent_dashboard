@@ -34,6 +34,12 @@ export async function getAgentHistory(id, { from, to } = {}) {
   return data;
 }
 
+// Every change to the agent's target date, newest first, with reasons.
+export async function getEtaHistory(id) {
+  const { data } = await client.get(`/agents/${id}/eta-history`);
+  return data;
+}
+
 export async function getAgentInsights(id, { days } = {}) {
   const { data } = await client.get(`/agents/${id}/insights`, { params: { days } });
   return data;

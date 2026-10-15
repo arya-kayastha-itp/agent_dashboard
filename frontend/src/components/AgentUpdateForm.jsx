@@ -6,9 +6,11 @@ import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useState } from 'react';
+import { needsBlockerDetails } from '../agentRules';
 import { STATUS_VALUES } from '../constants';
 import { useRecordUpdate } from '../hooks/useRecordUpdate';
 import { FIELD_LABELS } from '../labels';
+import BlockerFields from './BlockerFields';
 import ProgressSlider from './ProgressSlider';
 import { useToast } from './ToastProvider';
 
@@ -18,15 +20,21 @@ export default function AgentUpdateForm({ agent }) {
   const [status, setStatus] = useState(agent.currentStatus);
   const [progress, setProgress] = useState(agent.currentProgress);
   const [statusDescription, setStatusDescription] = useState(agent.currentStatusDescription || '');
+  const [blocker, setBlocker] = useState({ blockerReason: agent.blockerReason || '', blockedBy: agent.blockedBy || '' });
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (needsBlockerDetails(agent.currentStatus, status, blocker.blockerReason, blocker.blockedBy)) {
+      showToast("Say why it's blocked and who or what can unblock it.", 'error');
+      return;
+    }
     try {
       await recordUpdate.mutateAsync({
         agentId: agent.id,
         status,
         progress: Number(progress),
         statusDescription,
+        ...(status === 'Blocked' ? blocker : {}),
       });
       showToast('Update saved.', 'success');
     } catch (err) {
@@ -51,6 +59,15 @@ export default function AgentUpdateForm({ agent }) {
               ))}
             </TextField>
           </Stack>
+
+          {status === 'Blocked' && (
+            <BlockerFields
+              reason={blocker.blockerReason}
+              blockedBy={blocker.blockedBy}
+              required={agent.currentStatus !== 'Blocked'}
+              onChange={(patch) => setBlocker((prev) => ({ ...prev, ...patch }))}
+            />
+          )}
 
           <div>
             <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.72rem', fontWeight: 800, lineHeight: 1.4, mb: 0.75 }}>

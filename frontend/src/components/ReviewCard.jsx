@@ -11,6 +11,7 @@ import Typography from '@mui/material/Typography';
 import { alpha } from '@mui/material/styles';
 import { useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
+import { isLaterDate, needsBlockerDetails } from '../agentRules';
 import { STATUS_VALUES } from '../constants';
 import { formatDay, formatTimeAgo, toDateInputValue } from '../formatters';
 import { useReviewSubmission } from '../hooks/useSubmissions';
@@ -28,6 +29,8 @@ function proposedValues(submission) {
     progress: submission.progress,
     statusDescription: submission.statusDescription || '',
     eta: submission.eta || toDateInputValue(submission.currentEta),
+    blockerReason: submission.blockerReason || submission.currentBlockerReason || '',
+    blockedBy: submission.blockedBy || submission.currentBlockedBy || '',
   };
 }
 
@@ -71,22 +74,36 @@ export default function ReviewCard({ submission, selected, onSelectedChange, oth
   const [editing, setEditing] = useState(false);
   const [values, setValues] = useState(() => proposedValues(submission));
   const [comment, setComment] = useState('');
-  const [commentError, setCommentError] = useState(false);
+  const [commentError, setCommentError] = useState(null);
   const set = (field) => (value) => setValues((prev) => ({ ...prev, [field]: value }));
 
   const proposed = proposedValues(submission);
+  const blocked = values.status === 'Blocked';
   // Only what the reviewer actually changed; a cleared date counts as no change.
   const edits = {};
   if (values.status !== proposed.status) edits.status = values.status;
   if (Number(values.progress) !== proposed.progress) edits.progress = Number(values.progress);
   if (values.statusDescription !== proposed.statusDescription) edits.statusDescription = values.statusDescription;
   if (values.eta && values.eta !== proposed.eta) edits.eta = values.eta;
+  if (blocked && values.blockerReason !== proposed.blockerReason) edits.blockerReason = values.blockerReason;
+  if (blocked && values.blockedBy !== proposed.blockedBy) edits.blockedBy = values.blockedBy;
   const edited = Object.keys(edits).length > 0;
   const firstName = submission.submitterName.split(' ')[0];
+  // Approving a later target date needs a reason: the submitter's, or your comment.
+  const slipNeedsComment = isLaterDate(values.eta, toDateInputValue(submission.currentEta)) && !submission.etaReason;
 
   const decide = async (decision) => {
     if (decision !== 'approve' && !comment.trim()) {
-      setCommentError(true);
+      setCommentError('Add a comment so they know what to change');
+      return;
+    }
+    if (decision === 'approve' && slipNeedsComment && !comment.trim()) {
+      setCommentError('The target date moves later — add a comment saying why');
+      return;
+    }
+    if (decision === 'approve' && needsBlockerDetails(submission.currentStatus, values.status, values.blockerReason, values.blockedBy)) {
+      setEditing(true);
+      showToast("Add why it's blocked and who or what can unblock it before approving.", 'error');
       return;
     }
     try {
@@ -199,21 +216,56 @@ export default function ReviewCard({ submission, selected, onSelectedChange, oth
                 )
               }
             />
+            {submission.etaReason && etaChanged && (
+              <FieldRow label="Why later" current="" changed={false} proposed={`“${submission.etaReason}”`} />
+            )}
+            {blocked && (
+              <>
+                <FieldRow
+                  label="Why blocked"
+                  current={submission.currentStatus === 'Blocked' ? submission.currentBlockerReason || '—' : '—'}
+                  changed={values.blockerReason !== (submission.currentBlockerReason || '')}
+                  proposed={
+                    editing ? (
+                      <TextField size="small" fullWidth multiline value={values.blockerReason} onChange={(e) => set('blockerReason')(e.target.value)} />
+                    ) : (
+                      values.blockerReason || '—'
+                    )
+                  }
+                />
+                <FieldRow
+                  label="Waiting on"
+                  current={submission.currentStatus === 'Blocked' ? submission.currentBlockedBy || '—' : '—'}
+                  changed={values.blockedBy !== (submission.currentBlockedBy || '')}
+                  proposed={
+                    editing ? (
+                      <TextField size="small" fullWidth value={values.blockedBy} onChange={(e) => set('blockedBy')(e.target.value)} />
+                    ) : (
+                      values.blockedBy || '—'
+                    )
+                  }
+                />
+              </>
+            )}
           </Box>
 
           <TextField
             label={`Comment to ${firstName}`}
-            placeholder="Required when asking for changes or not accepting"
+            placeholder={
+              slipNeedsComment
+                ? 'Required — say why the target date is moving later'
+                : 'Required when asking for changes or not accepting'
+            }
             size="small"
             fullWidth
             multiline
             sx={{ mt: 2.5 }}
             value={comment}
-            error={commentError}
-            helperText={commentError ? 'Add a comment so they know what to change' : ' '}
+            error={Boolean(commentError)}
+            helperText={commentError || ' '}
             onChange={(e) => {
               setComment(e.target.value);
-              setCommentError(false);
+              setCommentError(null);
             }}
           />
 

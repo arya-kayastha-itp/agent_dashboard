@@ -1,12 +1,19 @@
 const crypto = require('crypto');
 const db = require('../db/databricksClient');
+const env = require('../config/env');
 const { assertTeamMembersExist } = require('./team-members.service');
 const audit = require('./audit.service');
+const rules = require('./agent-rules.service');
 
 // Assignees live in agent_assignees (one row per agent + team member), not on
 // this row — the legacy agents.assigned_to column is no longer read or written.
-// Every caller selects FROM agents (unaliased), which the pending-review count
-// relies on.
+// Every caller selects FROM agents (unaliased), which the correlated subqueries
+// below rely on.
+//
+// blockerEscalated: Blocked for at least the escalation threshold.
+// etaSlipCount: how many times the target date moved later.
+// etaSlipDays: today's target date minus the first one on record (the total
+// delay; null when the date has never changed).
 const AGENT_SELECT = `
   id,
   name,
@@ -20,7 +27,13 @@ const AGENT_SELECT = `
   sort_order as sortOrder,
   created_at as createdAt,
   updated_at as updatedAt,
-  (SELECT COUNT(*) FROM update_submissions s WHERE s.agent_id = agents.id AND s.review_status = 'pending') as pendingReviewCount
+  blocked_since as blockedSince,
+  blocker_reason as blockerReason,
+  blocked_by as blockedBy,
+  COALESCE(current_status = 'Blocked' AND blocked_since <= current_timestamp() - INTERVAL ${env.escalation.blockerDays} DAYS, false) as blockerEscalated,
+  (SELECT COUNT(*) FROM update_submissions s WHERE s.agent_id = agents.id AND s.review_status = 'pending') as pendingReviewCount,
+  (SELECT COUNT(*) FROM eta_changes e WHERE e.agent_id = agents.id AND e.from_eta IS NOT NULL AND e.to_eta > e.from_eta) as etaSlipCount,
+  datediff(eta, (SELECT min_by(e.from_eta, e.changed_at) FROM eta_changes e WHERE e.agent_id = agents.id AND e.from_eta IS NOT NULL)) as etaSlipDays
 `;
 
 // Map of agentId -> [{ id, name }] for the given agents, names A-Z. Pass no ids
@@ -112,6 +125,8 @@ async function createAgent(data, actor) {
 
   const assigneeIds = [...new Set(data.assigneeIds ?? [])];
   await assertTeamMembersExist(assigneeIds);
+  rules.requireBlockerDetails({ fromStatus: null, toStatus: data.status, blockerReason: data.blockerReason, blockedBy: data.blockedBy });
+  const blocked = data.status === 'Blocked';
 
   const maxOrderRow = await db.queryOne('SELECT MAX(sort_order) as maxOrder FROM agents');
   const sortOrder = (maxOrderRow?.maxOrder ?? -1) + 1;
@@ -129,17 +144,25 @@ async function createAgent(data, actor) {
     sortOrder,
     createdAt: now,
     updatedAt: now,
+    blockedSince: blocked ? now : null,
+    blockerReason: blocked ? data.blockerReason.trim() : null,
+    blockedBy: blocked ? data.blockedBy.trim() : null,
+    blockerEscalated: false,
     pendingReviewCount: 0,
+    etaSlipCount: 0,
+    etaSlipDays: null,
   };
 
   await db.query(
     `INSERT INTO agents
        (id, name, description, marketplace_deployment, eta, current_status, current_progress,
-        current_status_description, last_update_at, sort_order, created_at, updated_at)
+        current_status_description, last_update_at, sort_order, created_at, updated_at,
+        blocked_since, blocker_reason, blocked_by, blocker_escalated_at)
      VALUES
        (:id, :name, :description, CAST(:marketplaceDeployment AS BOOLEAN), CAST(:eta AS DATE), :currentStatus, :currentProgress,
         :currentStatusDescription, CAST(:lastUpdateAt AS TIMESTAMP), :sortOrder,
-        CAST(:createdAt AS TIMESTAMP), CAST(:updatedAt AS TIMESTAMP))`,
+        CAST(:createdAt AS TIMESTAMP), CAST(:updatedAt AS TIMESTAMP),
+        CAST(:blockedSince AS TIMESTAMP), CAST(:blockerReason AS STRING), CAST(:blockedBy AS STRING), NULL)`,
     {
       id,
       name: agent.name,
@@ -153,6 +176,9 @@ async function createAgent(data, actor) {
       sortOrder,
       createdAt: now,
       updatedAt: now,
+      blockedSince: agent.blockedSince,
+      blockerReason: agent.blockerReason,
+      blockedBy: agent.blockedBy,
     },
   );
 
@@ -190,6 +216,7 @@ async function createAgent(data, actor) {
         eta: agent.eta,
         marketplaceDeployment: agent.marketplaceDeployment,
         assignees: created.assignees.map((assignee) => assignee.name),
+        ...(blocked ? { blocker: { reason: agent.blockerReason, blockedBy: agent.blockedBy } } : {}),
       },
     },
   ]);
@@ -217,6 +244,9 @@ async function updateAgentMetadata(id, data, actor) {
 
   const assigneeIds = data.assigneeIds === undefined ? undefined : [...new Set(data.assigneeIds)];
   if (assigneeIds) await assertTeamMembersExist(assigneeIds);
+  if (data.eta !== undefined) {
+    rules.requireEtaReason({ fromEta: before.eta, toEta: data.eta, reason: data.etaChangeReason });
+  }
 
   const sets = ['updated_at = CAST(:updatedAt AS TIMESTAMP)'];
   const params = { id, updatedAt: new Date().toISOString() };
@@ -251,8 +281,17 @@ async function updateAgentMetadata(id, data, actor) {
   const added = after.assignees.filter((name) => !before.assignees.includes(name));
   const removed = before.assignees.filter((name) => !after.assignees.includes(name));
   if (added.length || removed.length) changes.assignees = { added, removed };
+
+  const etaReason = changes.eta && data.etaChangeReason?.trim() ? data.etaChangeReason.trim() : undefined;
+  if (changes.eta) {
+    await rules.recordEtaChanges([
+      { agentId: id, fromEta: before.eta, toEta: after.eta, reason: etaReason, changedBy: actor, source: 'edit' },
+    ]);
+  }
   if (Object.keys(changes).length) {
-    await audit.record([{ action: 'agent_edited', actor, agentId: id, agentName: after.name, details: { changes } }]);
+    await audit.record([
+      { action: 'agent_edited', actor, agentId: id, agentName: after.name, details: { changes, ...(etaReason ? { etaReason } : {}) } },
+    ]);
   }
   return getAgentById(id);
 }
@@ -264,7 +303,7 @@ async function deleteAgent(id, actor) {
   // cascades on its own — clear the child rows first, or a deleted agent's
   // usage logs would keep counting toward the portfolio cost rollups.
   // Sequential for the same Delta write-conflict reason as reorderAgents.
-  for (const table of ['update_submissions', 'agent_updates', 'agent_assignees', 'api_usage_logs', 'finops_alerts', 'finops_thresholds']) {
+  for (const table of ['update_submissions', 'agent_updates', 'eta_changes', 'agent_assignees', 'api_usage_logs', 'finops_alerts', 'finops_thresholds']) {
     // eslint-disable-next-line no-await-in-loop
     await db.query(`DELETE FROM ${table} WHERE agent_id = :id`, { id });
   }

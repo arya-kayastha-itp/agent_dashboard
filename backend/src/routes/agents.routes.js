@@ -15,6 +15,7 @@ router.use(authenticate);
 router.get('/', controller.listAgents);
 router.get('/:id', requireAgentAccess, controller.getAgent);
 router.get('/:id/history', requireAgentAccess, controller.getAgentHistory);
+router.get('/:id/eta-history', requireAgentAccess, controller.getEtaHistory);
 router.get('/:id/insights', requireAgentAccess, controller.getAgentInsights);
 router.post('/:id/insights/narrative', requireAgentAccess, controller.regenerateAgentNarrative);
 router.post('/', requirePersona(PERSONAS.AGENT_MANAGER), validateBody(createAgentSchema), controller.createAgent);

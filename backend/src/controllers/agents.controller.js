@@ -2,6 +2,7 @@ const agentsService = require('../services/agents.service');
 const updatesService = require('../services/updates.service');
 const insightsService = require('../services/insights.service');
 const aiNarrativeService = require('../services/ai-narrative.service');
+const agentRules = require('../services/agent-rules.service');
 const { PERSONAS } = require('../config/personas');
 
 async function listAgents(req, res, next) {
@@ -80,6 +81,15 @@ async function getAgentHistory(req, res, next) {
   }
 }
 
+// Every change to the agent's target date, newest first, with reasons.
+async function getEtaHistory(req, res, next) {
+  try {
+    res.json(await agentRules.listEtaChanges(req.params.id));
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function getAgentInsights(req, res, next) {
   try {
     const insights = await insightsService.getAgentInsights(req.params.id, { days: req.query.days });
@@ -113,6 +123,7 @@ module.exports = {
   reorderAgents,
   deleteAgent,
   getAgentHistory,
+  getEtaHistory,
   getAgentInsights,
   regenerateAgentNarrative,
 };

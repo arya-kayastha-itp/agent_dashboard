@@ -2,7 +2,7 @@ import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
-import { Controller, useForm } from 'react-hook-form';
+import { Controller, useForm, useWatch } from 'react-hook-form';
 import { STATUS_VALUES } from '../constants';
 import { FIELD_LABELS } from '../labels';
 import { openNativePicker } from '../nativePicker';
@@ -19,6 +19,8 @@ const DEFAULT_VALUES = {
   eta: '',
   progress: 0,
   statusDescription: '',
+  blockerReason: '',
+  blockedBy: '',
 };
 
 export default function AgentForm({ formId, onSubmit }) {
@@ -26,8 +28,12 @@ export default function AgentForm({ formId, onSubmit }) {
     register,
     control,
     handleSubmit,
+    getValues,
     formState: { errors },
   } = useForm({ defaultValues: DEFAULT_VALUES });
+  const status = useWatch({ control, name: 'status' });
+  // A new agent that starts out Blocked needs the same details as any other.
+  const requiredIfBlocked = (value) => getValues('status') !== 'Blocked' || value.trim().length > 0;
 
   return (
     <form id={formId} onSubmit={handleSubmit(onSubmit)}>
@@ -79,6 +85,29 @@ export default function AgentForm({ formId, onSubmit }) {
             {...register('eta')}
           />
         </Stack>
+
+        {status === 'Blocked' && (
+          <Stack spacing={1.5}>
+            <TextField
+              label="Why is it blocked?"
+              required
+              fullWidth
+              multiline
+              error={Boolean(errors.blockerReason)}
+              helperText={errors.blockerReason ? 'Say why it’s blocked' : ''}
+              {...register('blockerReason', { validate: requiredIfBlocked })}
+            />
+            <TextField
+              label="Who or what can unblock it?"
+              placeholder="A person, team or dependency"
+              required
+              fullWidth
+              error={Boolean(errors.blockedBy)}
+              helperText={errors.blockedBy ? 'Say who or what can unblock it' : ''}
+              {...register('blockedBy', { validate: requiredIfBlocked })}
+            />
+          </Stack>
+        )}
 
         <div>
           <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.72rem', fontWeight: 800, lineHeight: 1.4, mb: 0.75 }}>

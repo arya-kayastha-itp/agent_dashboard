@@ -25,6 +25,12 @@ An agent's assignees send updates (status, progress, notes, and optionally a new
 - An approved update becomes the history entry for the day it was sent, credited to the person who sent it. An old update approved late is recorded in history but never rolls the agent's current status back.
 - The Agent Manager's own updates (Daily Update Sheet, quick update, agent page) apply straight away, as before, and are now credited to them.
 
+## Target date slips and blockers
+
+- **Target date (ETA) history.** Every change to an agent's target date — from Edit Agent Details or an approved update — is recorded with the old and new date, who, when and why, and listed on the agent's page. Moving a date *later* needs a reason (for a contributor's update, theirs; if the reviewer pushes it later, their comment). An agent whose date has moved later more than once shows a "Slipped 3× · +24 days" badge (total delay = today's date vs the first one on record).
+- **Blockers.** Setting an agent to Blocked — anywhere: Daily Update Sheet, quick update, agent page, Add Agent, a contributor's update, or the reviewer's edits — needs why it's blocked and who or what can unblock it. The dashboard shows how long it's been blocked and what it's waiting on; unblocking clears it.
+- **Escalation.** An hourly check finds agents blocked for `BLOCKER_ESCALATION_DAYS` (default 3) or more and, once per block, emails every active Agent Manager, highlights them at the top of the Executive's Home, and logs it in the audit log. `ESCALATION_CHECKS=off` turns the check off (it runs only in the server process).
+
 ## Audit log
 
 The **Audit log** page (Agent Manager) lists every change to an agent, newest first: agents created, edited (name, description, target date, marketplace flag, assignees) and deleted; direct updates; and every submission and review decision — each with who did it, when, and the before → after values. Filter by agent or by person (a person filter shows what they did *and* reviews of their updates). Each agent's page shows its latest activity with a link to its full log. Entries are never edited or deleted, and keep the agent's and people's names even after they're removed. The log starts when migration `012` runs; earlier changes aren't backfilled.

@@ -16,6 +16,11 @@ module.exports = {
     acsConnectionString: process.env.ACS_CONNECTION_STRING,
     sender: process.env.EMAIL_SENDER,
   },
+  // An agent Blocked for this many days is escalated: highlighted for
+  // Executives and the Agent Manager is emailed once.
+  escalation: {
+    blockerDays: Math.max(1, Math.round(Number(process.env.BLOCKER_ESCALATION_DAYS)) || 3),
+  },
   databricks: {
     host: process.env.DATABRICKS_HOST,
     token: process.env.DATABRICKS_TOKEN,

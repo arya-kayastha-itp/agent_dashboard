@@ -8,6 +8,7 @@ import Typography from '@mui/material/Typography';
 import { alpha } from '@mui/material/styles';
 import { STATUS_VALUES } from '../constants';
 import { HEALTH_LEVEL_META, statusToHealthLevel } from '../healthLevel';
+import BlockerFields from './BlockerFields';
 import ProgressSlider from './ProgressSlider';
 
 export default function DailySheetRow({ agent, value, carriedOver, onChange }) {
@@ -17,14 +18,16 @@ export default function DailySheetRow({ agent, value, carriedOver, onChange }) {
   const handleField = (field) => (event) => onChange({ [field]: event.target.value });
   const { Icon: StatusIcon, color: statusColor } = HEALTH_LEVEL_META[statusToHealthLevel(value.status)];
 
+  const blocked = value.status === 'Blocked';
+
   return (
+    <>
     <TableRow
       hover
-      sx={(theme) =>
-        carriedOver
-          ? { backgroundImage: `linear-gradient(90deg, ${alpha(theme.palette.warning.main, 0.07)}, transparent 40%)` }
-          : {}
-      }
+      sx={(theme) => ({
+        ...(carriedOver ? { backgroundImage: `linear-gradient(90deg, ${alpha(theme.palette.warning.main, 0.07)}, transparent 40%)` } : {}),
+        ...(blocked ? { '& > td': { borderBottom: 'none' } } : {}),
+      })}
     >
       <TableCell sx={{ py: 1.25, verticalAlign: 'top' }}>
         <Typography variant="body2" sx={{ fontWeight: 800, fontSize: '0.84rem', pt: 0.5 }}>
@@ -65,5 +68,22 @@ export default function DailySheetRow({ agent, value, carriedOver, onChange }) {
         />
       </TableCell>
     </TableRow>
+    {/* A Blocked row opens a second line for why, and who can unblock it. */}
+    {blocked && (
+      <TableRow>
+        <TableCell />
+        <TableCell colSpan={3} sx={{ pt: 0, pb: 1.75 }}>
+          <BlockerFields
+            size="small"
+            direction="row"
+            reason={value.blockerReason}
+            blockedBy={value.blockedBy}
+            required={agent.currentStatus !== 'Blocked'}
+            onChange={onChange}
+          />
+        </TableCell>
+      </TableRow>
+    )}
+    </>
   );
 }

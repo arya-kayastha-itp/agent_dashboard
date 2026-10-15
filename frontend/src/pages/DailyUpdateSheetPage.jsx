@@ -15,6 +15,7 @@ import TableSortLabel from '@mui/material/TableSortLabel';
 import Typography from '@mui/material/Typography';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { needsBlockerDetails } from '../agentRules';
 import AccentMark from '../components/AccentMark';
 import DailySheetRow from '../components/DailySheetRow';
 import ErrorAlert from '../components/ErrorAlert';
@@ -59,6 +60,8 @@ export default function DailyUpdateSheetPage() {
               status: todayUpdate?.status ?? agent.currentStatus,
               progress: todayUpdate?.progress ?? agent.currentProgress,
               statusDescription: todayUpdate?.statusDescription ?? agent.currentStatusDescription ?? '',
+              blockerReason: agent.blockerReason ?? '',
+              blockedBy: agent.blockedBy ?? '',
               carriedOver: !todayUpdate,
             };
       });
@@ -72,12 +75,23 @@ export default function DailyUpdateSheetPage() {
   };
 
   const handleSubmit = async () => {
+    // Every agent newly marked Blocked needs its blocker details first.
+    const agentsById = new Map((rows || []).map(({ agent }) => [agent.id, agent]));
+    const missing = Object.entries(entries)
+      .filter(([agentId, value]) => needsBlockerDetails(agentsById.get(agentId)?.currentStatus, value.status, value.blockerReason, value.blockedBy))
+      .map(([agentId]) => agentsById.get(agentId)?.name);
+    if (missing.length) {
+      showToast(`Say why it's blocked and who or what can unblock it for: ${missing.join(', ')}.`, 'error');
+      return;
+    }
+
     const payload = {
       entries: Object.entries(entries).map(([agentId, value]) => ({
         agentId,
         status: value.status,
         progress: Number(value.progress),
         statusDescription: value.statusDescription,
+        ...(value.status === 'Blocked' ? { blockerReason: value.blockerReason, blockedBy: value.blockedBy } : {}),
       })),
     };
     try {

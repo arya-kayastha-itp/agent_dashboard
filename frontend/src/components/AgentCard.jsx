@@ -17,6 +17,7 @@ import DeleteAgentButton from './DeleteAgentButton';
 import MarketplaceTag from './MarketplaceTag';
 import PendingReviewChip from './PendingReviewChip';
 import ProgressBar from './ProgressBar';
+import SlipBadge from './SlipBadge';
 import StatusBadge from './StatusBadge';
 
 const CARD_HEIGHT = 178;
@@ -75,6 +76,7 @@ export default function AgentCard({ agent, index = 0 }) {
           <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mt: 1, flexShrink: 0 }}>
             <StatusBadge status={agent.currentStatus} />
             <PendingReviewChip agent={agent} compact />
+            <SlipBadge agent={agent} compact />
           </Stack>
 
           <Box sx={{ mt: 1, flexShrink: 0 }}>

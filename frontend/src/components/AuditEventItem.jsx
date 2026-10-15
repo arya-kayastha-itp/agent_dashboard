@@ -19,7 +19,8 @@ export default function AuditEventItem({ event, agentExists }) {
 
   return (
     <Stack direction="row" spacing={1.5} alignItems="flex-start" sx={{ py: 1.5 }}>
-      <PersonAvatar name={event.actorName || '?'} />
+      {/* No actor = the dashboard itself (e.g. an automatic escalation). */}
+      <PersonAvatar name={event.actorName || 'Agents Dashboard'} />
       <Box sx={{ minWidth: 0, flexGrow: 1 }}>
         <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={{ xs: 0.25, sm: 2 }}>
           <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.5 }}>

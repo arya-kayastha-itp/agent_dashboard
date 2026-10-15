@@ -6,7 +6,8 @@ import DialogTitle from '@mui/material/DialogTitle';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import { useEffect } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { Controller, useForm, useWatch } from 'react-hook-form';
+import { isLaterDate } from '../agentRules';
 import { toDateInputValue } from '../formatters';
 import { useUpdateAgent } from '../hooks/useAgents';
 import { FIELD_LABELS } from '../labels';
@@ -26,7 +27,13 @@ export default function EditAgentModal({ open, onClose, agent }) {
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm({ defaultValues: { name: '', description: '', assigneeIds: [], marketplaceDeployment: false, eta: '' } });
+  } = useForm({
+    defaultValues: { name: '', description: '', assigneeIds: [], marketplaceDeployment: false, eta: '', etaChangeReason: '' },
+  });
+  const originalEta = toDateInputValue(agent?.eta);
+  const eta = useWatch({ control, name: 'eta' });
+  // Pushing the target date later is a slip, and needs a reason on record.
+  const etaSlips = isLaterDate(eta, originalEta);
 
   useEffect(() => {
     if (agent && open) {
@@ -36,15 +43,16 @@ export default function EditAgentModal({ open, onClose, agent }) {
         assigneeIds: (agent.assignees || []).map((assignee) => assignee.id),
         marketplaceDeployment: Boolean(agent.marketplaceDeployment),
         eta: toDateInputValue(agent.eta),
+        etaChangeReason: '',
       });
     }
   }, [agent, open, reset]);
 
-  const handleSave = async (values) => {
+  const handleSave = async ({ etaChangeReason, ...values }) => {
     try {
       await updateAgent.mutateAsync({
         id: agent.id,
-        payload: { ...values, eta: values.eta || null },
+        payload: { ...values, eta: values.eta || null, ...(etaSlips ? { etaChangeReason } : {}) },
       });
       showToast('Agent details updated.', 'success');
       onClose();
@@ -90,6 +98,18 @@ export default function EditAgentModal({ open, onClose, agent }) {
               inputProps={{ onClick: openNativePicker }}
               {...register('eta')}
             />
+
+            {etaSlips && (
+              <TextField
+                label="Why is the target date moving later?"
+                required
+                fullWidth
+                multiline
+                error={Boolean(errors.etaChangeReason)}
+                helperText={errors.etaChangeReason ? 'A reason is needed when the date moves later' : 'Kept in the target date history'}
+                {...register('etaChangeReason', { validate: (value) => !etaSlips || value.trim().length > 0 })}
+              />
+            )}
           </Stack>
         </form>
       </DialogContent>

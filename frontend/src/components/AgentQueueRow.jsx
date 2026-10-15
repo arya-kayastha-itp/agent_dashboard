@@ -9,10 +9,12 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
+import { needsBlockerDetails } from '../agentRules';
 import { STATUS_VALUES } from '../constants';
 import { useRecordUpdate } from '../hooks/useRecordUpdate';
 import { FIELD_LABELS } from '../labels';
 import AgentSummaryRow from './AgentSummaryRow';
+import BlockerFields from './BlockerFields';
 import ProgressSlider from './ProgressSlider';
 import { useToast } from './ToastProvider';
 
@@ -32,15 +34,21 @@ export default function AgentQueueRow({ agent, dragHandle, rowRef, rowStyle }) {
   const [status, setStatus] = useState(agent.currentStatus);
   const [progress, setProgress] = useState(agent.currentProgress);
   const [statusDescription, setStatusDescription] = useState(agent.currentStatusDescription || '');
+  const [blocker, setBlocker] = useState({ blockerReason: agent.blockerReason || '', blockedBy: agent.blockedBy || '' });
 
   const handleSave = async (event) => {
     event.preventDefault();
+    if (needsBlockerDetails(agent.currentStatus, status, blocker.blockerReason, blocker.blockedBy)) {
+      showToast("Say why it's blocked and who or what can unblock it.", 'error');
+      return;
+    }
     try {
       await recordUpdate.mutateAsync({
         agentId: agent.id,
         status,
         progress: Number(progress),
         statusDescription,
+        ...(status === 'Blocked' ? blocker : {}),
       });
       showToast('Update saved.', 'success');
       setExpanded(false);
@@ -53,6 +61,7 @@ export default function AgentQueueRow({ agent, dragHandle, rowRef, rowStyle }) {
     setStatus(agent.currentStatus);
     setProgress(agent.currentProgress);
     setStatusDescription(agent.currentStatusDescription || '');
+    setBlocker({ blockerReason: agent.blockerReason || '', blockedBy: agent.blockedBy || '' });
     setExpanded(false);
   };
 
@@ -122,6 +131,18 @@ export default function AgentQueueRow({ agent, dragHandle, rowRef, rowStyle }) {
                   </Typography>
                   <ProgressSlider value={progress} onChange={setProgress} size="small" />
                 </div>
+
+                {status === 'Blocked' && (
+                  <BlockerFields
+                    size="small"
+                    direction="row"
+                    reason={blocker.blockerReason}
+                    blockedBy={blocker.blockedBy}
+                    required={agent.currentStatus !== 'Blocked'}
+                    onChange={(patch) => setBlocker((prev) => ({ ...prev, ...patch }))}
+                    sx={{ gridColumn: '1 / -1' }}
+                  />
+                )}
 
                 <TextField
                   label={FIELD_LABELS.statusDescription}

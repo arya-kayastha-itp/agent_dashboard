@@ -1,6 +1,8 @@
 import Alert from '@mui/material/Alert';
+import AlertTitle from '@mui/material/AlertTitle';
 import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
+import Link from '@mui/material/Link';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
@@ -10,9 +12,10 @@ import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
+import { alpha } from '@mui/material/styles';
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { computeAgentHealth, sortBySeverity, summarizeAgents } from '../agentHealth';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { computeAgentHealth, daysBlocked, sortBySeverity, summarizeAgents } from '../agentHealth';
 import AccentMark from '../components/AccentMark';
 import AgentSummaryRow from '../components/AgentSummaryRow';
 import DashboardSummaryBanner from '../components/DashboardSummaryBanner';
@@ -45,6 +48,8 @@ export default function ExecutivePortfolioPage({ marketplaceOnly = false }) {
   }, [sorted, healthFilter]);
 
   const flaggedCount = summary.attention + summary.atRisk;
+  // Blocked past the escalation threshold — called out above everything else.
+  const escalated = useMemo(() => scoped.filter((agent) => agent.blockerEscalated), [scoped]);
 
   return (
     <Box>
@@ -65,6 +70,26 @@ export default function ExecutivePortfolioPage({ marketplaceOnly = false }) {
 
       {marketplaceOnly && agents && agents.length > 0 && scoped.length === 0 && (
         <Alert severity="info">No agents are tagged for Marketplace Deployment yet.</Alert>
+      )}
+
+      {escalated.length > 0 && (
+        <Alert severity="error" sx={{ mb: 2.5, animation: 'g-rise 0.6s var(--g-ease) backwards' }}>
+          <AlertTitle sx={{ fontWeight: 800 }}>
+            {escalated.length === 1 ? 'An agent has' : `${escalated.length} agents have`} been blocked too long
+          </AlertTitle>
+          <Stack spacing={0.75}>
+            {escalated.map((agent) => (
+              <Typography key={agent.id} variant="body2">
+                <Link component={RouterLink} to={`/agents/${agent.id}`} color="inherit" sx={{ fontWeight: 800 }}>
+                  {agent.name}
+                </Link>
+                {` — blocked ${daysBlocked(agent)} days`}
+                {agent.blockedBy ? `, waiting on ${agent.blockedBy}` : ''}
+                {agent.blockerReason ? `. ${agent.blockerReason}` : ''}
+              </Typography>
+            ))}
+          </Stack>
+        </Alert>
       )}
 
       {scoped.length > 0 && (
@@ -94,11 +119,12 @@ export default function ExecutivePortfolioPage({ marketplaceOnly = false }) {
                     key={agent.id}
                     hover
                     onClick={() => navigate(`/agents/${agent.id}`)}
-                    sx={{
+                    sx={(theme) => ({
                       cursor: 'pointer',
                       animation: 'g-rise 0.6s var(--g-ease) backwards',
                       animationDelay: `${Math.min(index, 12) * 45 + 200}ms`,
-                    }}
+                      ...(agent.blockerEscalated ? { bgcolor: alpha(theme.palette.error.main, 0.06) } : {}),
+                    })}
                   >
                     <AgentSummaryRow agent={agent} />
                   </TableRow>

@@ -21,8 +21,9 @@ export function useUpdateAgent() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, payload }) => updateAgent(id, payload),
+    // agentHistory covers the target date history, which an edit can extend.
     onSuccess: () => {
-      ['agents', 'teamMembers', 'audit'].forEach((key) => queryClient.invalidateQueries({ queryKey: [key] }));
+      ['agents', 'teamMembers', 'audit', 'agentHistory'].forEach((key) => queryClient.invalidateQueries({ queryKey: [key] }));
     },
   });
 }

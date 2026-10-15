@@ -71,6 +71,42 @@ async function sendAccountLinkEmail({ to, name, purpose, url, expiresAt }) {
   });
 }
 
+// One email listing every agent that crossed the "blocked too long" threshold
+// in this check — never a reminder per day.
+async function sendBlockerEscalationEmail({ to, name, agents, days }) {
+  const firstName = name.split(' ')[0];
+  const subject =
+    agents.length === 1 ? `${agents[0].name} has been blocked for ${days}+ days` : `${agents.length} agents have been blocked for ${days}+ days`;
+  const lines = agents.map((agent) => ({
+    heading: `${agent.name} — blocked ${agent.daysBlocked} day${agent.daysBlocked === 1 ? '' : 's'}`,
+    why: agent.blockerReason || 'No reason recorded',
+    waitingOn: agent.blockedBy || 'Not recorded',
+    url: `${env.appUrl}/agents/${agent.id}`,
+  }));
+
+  return sendEmail({
+    to,
+    subject,
+    text: [
+      `Hi ${firstName},`,
+      '',
+      `${agents.length === 1 ? 'This agent has' : 'These agents have'} been blocked for ${days} days or more:`,
+      '',
+      ...lines.flatMap((line) => [line.heading, `  Why: ${line.why}`, `  Waiting on: ${line.waitingOn}`, `  ${line.url}`, '']),
+      "You won't get another email about these unless they're unblocked and become blocked again.",
+    ].join('\n'),
+    html: `<p>Hi ${escapeHtml(firstName)},</p>
+<p>${agents.length === 1 ? 'This agent has' : 'These agents have'} been blocked for ${days} days or more:</p>
+<ul>${lines
+      .map(
+        (line) => `<li><a href="${escapeHtml(line.url)}"><b>${escapeHtml(line.heading)}</b></a><br>
+Why: ${escapeHtml(line.why)}<br>Waiting on: ${escapeHtml(line.waitingOn)}</li>`,
+      )
+      .join('')}</ul>
+<p style="color:#666">You won't get another email about these unless they're unblocked and become blocked again.</p>`,
+  });
+}
+
 // FinOps alert delivery isn't wired up yet — this is a stub so alert-raising
 // code has a single call site to wire real email delivery into later.
 // Logs what would be sent instead of sending it. Callers must wrap this in
@@ -79,4 +115,4 @@ async function sendAlertEmail(alert) {
   console.log(`[finops] would email alert: [${alert.severity}] ${alert.alertType} — ${alert.message}`);
 }
 
-module.exports = { sendAccountLinkEmail, sendAlertEmail };
+module.exports = { sendAccountLinkEmail, sendBlockerEscalationEmail, sendAlertEmail };

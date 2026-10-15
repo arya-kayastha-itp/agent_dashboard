@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const db = require('../db/databricksClient');
 const { AGENT_SELECT } = require('./agents.service');
 const audit = require('./audit.service');
+const rules = require('./agent-rules.service');
 
 function todayDateString() {
   return new Date().toISOString().slice(0, 10);
@@ -19,7 +20,14 @@ function updateEvents(befores, rows, { actor, date, via }) {
     const before = beforeById.get(row.agentId);
     const changes = audit.diff(before, row, UPDATE_FIELDS);
     if (!before || !Object.keys(changes).length) return [];
-    return [{ action: 'update_recorded', actor, agentId: row.agentId, agentName: before.name, details: { changes, updateDate: date, ...(via ? { via } : {}) } }];
+    const becameBlocked = row.status === 'Blocked' && before.status !== 'Blocked';
+    const details = {
+      changes,
+      updateDate: date,
+      ...(via ? { via } : {}),
+      ...(becameBlocked ? { blocker: { reason: rules.cleanText(row.blockerReason), blockedBy: rules.cleanText(row.blockedBy) } } : {}),
+    };
+    return [{ action: 'update_recorded', actor, agentId: row.agentId, agentName: before.name, details }];
   });
 }
 
@@ -31,12 +39,23 @@ function updateEvents(befores, rows, { actor, date, via }) {
 // endpoint, and (in a future phase) any automated webhook/API ingestion path.
 // `actor` is the signed-in account making the change (the Agent Manager here —
 // approved submissions are written by submissions.service.js instead).
-async function recordUpdate({ agentId, updateDate, status, progress, statusDescription, source = 'manual', actor = null }) {
+async function recordUpdate({
+  agentId,
+  updateDate,
+  status,
+  progress,
+  statusDescription,
+  blockerReason,
+  blockedBy,
+  source = 'manual',
+  actor = null,
+}) {
   const date = updateDate || todayDateString();
   const now = new Date().toISOString();
   const newId = crypto.randomUUID();
   const recordedBy = actor?.id ?? null;
   const before = await db.queryOne(`SELECT ${CURRENT_VALUES} FROM agents WHERE id = :agentId`, { agentId });
+  rules.requireBlockerDetails({ fromStatus: before?.status, toStatus: status, blockerReason, blockedBy });
 
   await db.query(
     `MERGE INTO agent_updates AS u
@@ -62,14 +81,25 @@ async function recordUpdate({ agentId, updateDate, status, progress, statusDescr
        current_status = :status,
        current_progress = :progress,
        current_status_description = :statusDescription,
+       ${rules.blockerAssignments({ status: ':status', reason: 'CAST(:blockerReason AS STRING)', blockedBy: 'CAST(:blockedBy AS STRING)', now: 'CAST(:now AS TIMESTAMP)' })},
        last_update_at = CAST(:now AS TIMESTAMP),
        updated_at = CAST(:now AS TIMESTAMP)
      WHERE id = :agentId`,
-    { status, progress, statusDescription: statusDescription ?? null, now, agentId },
+    {
+      status,
+      progress,
+      statusDescription: statusDescription ?? null,
+      blockerReason: rules.cleanText(blockerReason),
+      blockedBy: rules.cleanText(blockedBy),
+      now,
+      agentId,
+    },
   );
 
   const agent = await db.queryOne(`SELECT ${AGENT_SELECT} FROM agents WHERE id = :agentId`, { agentId });
-  await audit.record(updateEvents(before ? [before] : [], [{ agentId, status, progress, statusDescription }], { actor, date }));
+  await audit.record(
+    updateEvents(before ? [before] : [], [{ agentId, status, progress, statusDescription, blockerReason, blockedBy }], { actor, date }),
+  );
 
   return { update, agent };
 }
@@ -108,14 +138,29 @@ async function recordBatch({ updateDate, entries, source = 'manual', actor = nul
     throw err;
   }
 
+  // Every agent becoming Blocked on this sheet needs its blocker details —
+  // name them all at once rather than one per attempt.
+  const beforeById = new Map(existing.map((before) => [before.id, before]));
+  const missingBlocker = rows.filter((row) => rules.needsBlockerDetails({ ...row, fromStatus: beforeById.get(row.agentId).status, toStatus: row.status }));
+  if (missingBlocker.length) {
+    throw rules.httpError(
+      400,
+      'BLOCKER_DETAILS_REQUIRED',
+      `Say why it's blocked and who or what can unblock it for: ${missingBlocker.map((row) => beforeById.get(row.agentId).name).join(', ')}.`,
+    );
+  }
+
   const values = rows.map((row, i) => {
     params[`status${i}`] = row.status;
     params[`progress${i}`] = row.progress;
     params[`description${i}`] = row.statusDescription ?? null;
+    params[`blockerReason${i}`] = rules.cleanText(row.blockerReason);
+    params[`blockedBy${i}`] = rules.cleanText(row.blockedBy);
     params[`newId${i}`] = crypto.randomUUID();
-    return `(:agentId${i}, :status${i}, CAST(:progress${i} AS INT), CAST(:description${i} AS STRING), :newId${i})`;
+    return `(:agentId${i}, :status${i}, CAST(:progress${i} AS INT), CAST(:description${i} AS STRING), :newId${i},
+             CAST(:blockerReason${i} AS STRING), CAST(:blockedBy${i} AS STRING))`;
   });
-  const sourceRows = `SELECT * FROM VALUES ${values.join(', ')} AS s(agent_id, status, progress, status_description, new_id)`;
+  const sourceRows = `SELECT * FROM VALUES ${values.join(', ')} AS s(agent_id, status, progress, status_description, new_id, blocker_reason, blocked_by)`;
 
   await db.query(
     `MERGE INTO agent_updates AS u
@@ -137,6 +182,7 @@ async function recordBatch({ updateDate, entries, source = 'manual', actor = nul
        current_status = s.status,
        current_progress = s.progress,
        current_status_description = s.status_description,
+       ${rules.blockerAssignments({ status: 's.status', reason: 's.blocker_reason', blockedBy: 's.blocked_by', now: 'CAST(:now AS TIMESTAMP)', target: 'a.' })},
        last_update_at = CAST(:now AS TIMESTAMP),
        updated_at = CAST(:now AS TIMESTAMP)`,
     params,

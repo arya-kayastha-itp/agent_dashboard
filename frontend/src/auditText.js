@@ -82,9 +82,16 @@ export function auditSentence(event) {
       return { before: `${actor} asked ${subject} for changes to their update for `, after: '' };
     case 'update_rejected':
       return { before: `${actor} didn't accept ${subject}'s update for `, after: '' };
+    case 'blocker_escalated':
+      return { before: '', after: ` had been blocked for ${details.daysBlocked} days and was escalated to the Agent Manager` };
     default:
       return { before: `${actor} changed `, after: '' };
   }
+}
+
+function blockerNotes(blocker) {
+  if (!blocker) return [];
+  return [blocker.reason && `Why it's blocked: “${blocker.reason}”`, blocker.blockedBy && `Waiting on: ${blocker.blockedBy}`].filter(Boolean);
 }
 
 // Extra one-liners under the sentence (besides the change lines).
@@ -99,9 +106,20 @@ export function auditNotes(event) {
   if (['update_submitted', 'changes_requested', 'update_rejected'].includes(event.action) && details.proposed) {
     const proposed = summarizeValues(details.proposed);
     if (proposed) notes.push(`Proposed: ${proposed}`);
+    if (details.proposed.etaReason) notes.push(`Why the date moves later: “${details.proposed.etaReason}”`);
+    notes.push(...blockerNotes(details.proposed.blocker));
   }
   if (event.action === 'update_approved' && details.appliedToCurrent === false) {
     notes.push(`Recorded in the history for ${formatDay(details.updateDate)} only — a newer update was already showing.`);
+  }
+  if (details.etaReason) notes.push(`Why the date moved later: “${details.etaReason}”`);
+  if (event.action !== 'update_submitted') notes.push(...blockerNotes(details.blocker));
+  if (event.action === 'blocker_escalated') {
+    notes.push(
+      details.emailed?.length
+        ? `Emailed ${details.emailed.join(', ')}.`
+        : "Email isn't set up yet, so no one was emailed — it's highlighted on the Executive view.",
+    );
   }
   if (details.comment) notes.push(`Comment: “${details.comment}”`);
   return notes;

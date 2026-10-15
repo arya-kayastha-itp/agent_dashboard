@@ -22,12 +22,15 @@ import AssigneeAvatars from '../components/AssigneeAvatars';
 import DeleteAgentButton from '../components/DeleteAgentButton';
 import EditAgentModal from '../components/EditAgentModal';
 import ErrorAlert from '../components/ErrorAlert';
+import EscalatedChip from '../components/EscalatedChip';
+import EtaHistoryPanel from '../components/EtaHistoryPanel';
 import HistoryChart from '../components/HistoryChart';
 import InfoTooltip from '../components/InfoTooltip';
 import InsightsPanel from '../components/InsightsPanel';
 import MarketplaceTag from '../components/MarketplaceTag';
 import PendingReviewChip from '../components/PendingReviewChip';
 import ProgressRing from '../components/ProgressRing';
+import SlipBadge from '../components/SlipBadge';
 import StatusBadge from '../components/StatusBadge';
 import SubmitUpdateForm from '../components/SubmitUpdateForm';
 import { formatAssignees } from '../formatters';
@@ -126,7 +129,10 @@ export default function AgentDetailPage() {
               <Typography variant="h4" component="h1" sx={{ fontSize: { xs: '1.5rem', md: '2rem' }, wordBreak: 'break-word' }}>
                 {agent.name}
               </Typography>
-              <MarketplaceTag agent={agent} sx={{ display: 'flex', width: 'fit-content' }} />
+              <Stack direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap">
+                <MarketplaceTag agent={agent} sx={{ display: 'flex', width: 'fit-content' }} />
+                <SlipBadge agent={agent} />
+              </Stack>
               {agent.description && (
                 <Typography variant="body1" color="text.secondary" sx={{ fontSize: '0.92rem', lineHeight: 1.55, maxWidth: 680 }}>
                   {agent.description}
@@ -171,7 +177,7 @@ export default function AgentDetailPage() {
             </Stack>
           </Box>
 
-          {(showHealth || agent.currentStatusDescription) && (
+          {(showHealth || agent.currentStatusDescription || agent.currentStatus === 'Blocked') && (
             <Stack spacing={1.75} sx={{ mt: 3, pt: 3, borderTop: 1, borderColor: 'divider' }}>
               {showHealth && (
                 <Stack
@@ -196,6 +202,20 @@ export default function AgentDetailPage() {
                   <Typography variant="body2" fontWeight={800} sx={{ color: 'inherit' }}>
                     {health.level === HEALTH_LEVELS.HEALTHY ? 'This project is on track.' : health.reason}
                   </Typography>
+                </Stack>
+              )}
+
+              {agent.currentStatus === 'Blocked' && (agent.blockerReason || agent.blockerEscalated) && (
+                <Stack direction="row" spacing={1.25} alignItems="center" useFlexGap flexWrap="wrap">
+                  <EscalatedChip agent={agent} />
+                  {agent.blockerReason && (
+                    <Typography variant="body2" color="text.secondary">
+                      <Box component="span" sx={{ fontWeight: 800 }}>
+                        Why it&apos;s blocked:{' '}
+                      </Box>
+                      {agent.blockerReason}
+                    </Typography>
+                  )}
                 </Stack>
               )}
 
@@ -270,6 +290,7 @@ export default function AgentDetailPage() {
         {history && history.length > 0 && <HistoryChart history={history} />}
       </Paper>
 
+      <EtaHistoryPanel agentId={id} />
       {canReviewUpdates(persona) && <AgentActivityPanel agentId={id} />}
     </Box>
   );

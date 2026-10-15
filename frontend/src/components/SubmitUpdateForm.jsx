@@ -8,11 +8,13 @@ import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useState } from 'react';
+import { isLaterDate, needsBlockerDetails } from '../agentRules';
 import { STATUS_VALUES } from '../constants';
 import { formatDay, formatTimeAgo, toDateInputValue } from '../formatters';
 import { useCreateSubmission, useSubmissions } from '../hooks/useSubmissions';
 import { FIELD_LABELS } from '../labels';
 import { openNativePicker } from '../nativePicker';
+import BlockerFields from './BlockerFields';
 import ProgressSlider from './ProgressSlider';
 import { useToast } from './ToastProvider';
 
@@ -71,6 +73,9 @@ function startingValues(agent, latest) {
     progress: fromLatest ? latest.progress : agent.currentProgress,
     statusDescription: (fromLatest ? latest.statusDescription : agent.currentStatusDescription) || '',
     eta: fromLatest && latest.eta ? latest.eta : toDateInputValue(agent.eta),
+    etaReason: (fromLatest && latest.etaReason) || '',
+    blockerReason: (fromLatest && latest.blockerReason) || agent.blockerReason || '',
+    blockedBy: (fromLatest && latest.blockedBy) || agent.blockedBy || '',
   };
 }
 
@@ -82,10 +87,21 @@ export function SubmitForm({ agent, latest, inline = false, onCancel, onSent }) 
   const [values, setValues] = useState(() => startingValues(agent, latest));
   const set = (field) => (value) => setValues((prev) => ({ ...prev, [field]: value }));
   const size = inline ? 'small' : 'medium';
+  const currentEta = toDateInputValue(agent.eta);
+  // A later date than the agent's current one is a slip and needs a reason.
+  const etaSlips = isLaterDate(values.eta, currentEta);
+  const blocked = values.status === 'Blocked';
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    const currentEta = toDateInputValue(agent.eta);
+    if (etaSlips && !values.etaReason.trim()) {
+      showToast('Say why the target date is moving later.', 'error');
+      return;
+    }
+    if (needsBlockerDetails(agent.currentStatus, values.status, values.blockerReason, values.blockedBy)) {
+      showToast("Say why it's blocked and who or what can unblock it.", 'error');
+      return;
+    }
     try {
       await createSubmission.mutateAsync({
         agentId: agent.id,
@@ -94,6 +110,8 @@ export function SubmitForm({ agent, latest, inline = false, onCancel, onSent }) 
         statusDescription: values.statusDescription,
         // Only a changed target date is a proposal; otherwise "no change".
         eta: values.eta && values.eta !== currentEta ? values.eta : null,
+        ...(etaSlips ? { etaReason: values.etaReason } : {}),
+        ...(blocked ? { blockerReason: values.blockerReason, blockedBy: values.blockedBy } : {}),
       });
       showToast('Sent to the Agent Manager for review.', 'success');
       onSent?.();
@@ -144,6 +162,29 @@ export function SubmitForm({ agent, latest, inline = false, onCancel, onSent }) 
       sx={inline ? { gridColumn: '1 / -1' } : undefined}
     />
   );
+  const etaReasonField = etaSlips && (
+    <TextField
+      label="Why is the target date moving later?"
+      size={size}
+      fullWidth
+      required
+      value={values.etaReason}
+      onChange={(e) => set('etaReason')(e.target.value)}
+      helperText={inline ? undefined : 'The Agent Manager sees this with your update'}
+      sx={inline ? { gridColumn: '1 / -1' } : undefined}
+    />
+  );
+  const blockerFields = blocked && (
+    <BlockerFields
+      size={size}
+      direction={inline ? 'row' : 'column'}
+      reason={values.blockerReason}
+      blockedBy={values.blockedBy}
+      required={agent.currentStatus !== 'Blocked'}
+      onChange={(patch) => setValues((prev) => ({ ...prev, ...patch }))}
+      sx={inline ? { gridColumn: '1 / -1' } : undefined}
+    />
+  );
   const sendButton = (
     <Button type="submit" size={size} variant="contained" disabled={createSubmission.isPending}>
       {createSubmission.isPending ? 'Sending…' : 'Send for review'}
@@ -159,6 +200,8 @@ export function SubmitForm({ agent, latest, inline = false, onCancel, onSent }) 
             {statusField}
             {etaField}
             {progressField}
+            {etaReasonField}
+            {blockerFields}
             {notesField}
           </Box>
           <Stack direction="row" spacing={1} justifyContent="flex-end">
@@ -180,6 +223,8 @@ export function SubmitForm({ agent, latest, inline = false, onCancel, onSent }) 
           {statusField}
           {etaField}
         </Stack>
+        {etaReasonField}
+        {blockerFields}
         {progressField}
         {notesField}
         <Box>{sendButton}</Box>

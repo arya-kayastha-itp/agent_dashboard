@@ -4,10 +4,24 @@ import { HEALTH_LEVELS } from './healthLevel';
 // the Daily Sheet's same-day carriedOver check, so the banner doesn't nag
 // every day while the sheet still flags anything not touched today.
 const STALE_DAYS_THRESHOLD = 2;
+const DAY_MS = 1000 * 60 * 60 * 24;
+
+// Whole days an agent has been Blocked (0 on the day it became blocked), or
+// null when it isn't Blocked or the start wasn't recorded.
+export function daysBlocked(agent, now = new Date()) {
+  if (agent.currentStatus !== 'Blocked' || !agent.blockedSince) return null;
+  return Math.max(0, Math.floor((now - new Date(agent.blockedSince)) / DAY_MS));
+}
+
+function blockedReason(agent, now) {
+  const days = daysBlocked(agent, now);
+  const howLong = days === null ? 'Blocked' : days === 0 ? 'Blocked since today' : `Blocked ${days} day${days === 1 ? '' : 's'}`;
+  return agent.blockedBy ? `${howLong} — waiting on ${agent.blockedBy}` : `${howLong} — may need your help to move forward`;
+}
 
 export function computeAgentHealth(agent, now = new Date()) {
   if (agent.currentStatus === 'Blocked') {
-    return { level: HEALTH_LEVELS.AT_RISK, reason: 'Blocked — may need your help to move forward' };
+    return { level: HEALTH_LEVELS.AT_RISK, reason: blockedReason(agent, now) };
   }
 
   if (agent.eta && agent.currentStatus !== 'Completed') {

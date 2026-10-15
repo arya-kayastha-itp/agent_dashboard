@@ -5,9 +5,11 @@ import { computeAgentHealth } from '../agentHealth';
 import { formatAssignees } from '../formatters';
 import { HEALTH_LEVEL_META } from '../healthLevel';
 import AssigneeAvatars from './AssigneeAvatars';
+import EscalatedChip from './EscalatedChip';
 import MarketplaceTag from './MarketplaceTag';
 import PendingReviewChip from './PendingReviewChip';
 import ProgressBar from './ProgressBar';
+import SlipBadge from './SlipBadge';
 import StatusBadge from './StatusBadge';
 
 const CELL_PY = 1.25;
@@ -52,6 +54,7 @@ export default function AgentSummaryRow({ agent, onNameClick, leading, trailing 
           </Typography>
         </Stack>
         <MarketplaceTag agent={agent} sx={{ display: 'flex', width: 'fit-content', mt: 0.5 }} />
+        <SlipBadge agent={agent} sx={{ mt: 0.5 }} />
       </TableCell>
 
       <TableCell sx={{ py: CELL_PY, display: { xs: 'none', sm: 'table-cell' } }}>
@@ -70,6 +73,7 @@ export default function AgentSummaryRow({ agent, onNameClick, leading, trailing 
       <TableCell sx={{ py: CELL_PY, whiteSpace: 'nowrap' }}>
         <Stack spacing={0.75} alignItems="flex-start">
           <StatusBadge status={agent.currentStatus} />
+          <EscalatedChip agent={agent} />
           <PendingReviewChip agent={agent} />
         </Stack>
       </TableCell>
