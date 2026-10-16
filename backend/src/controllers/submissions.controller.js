@@ -10,8 +10,8 @@ async function createSubmission(req, res, next) {
   }
 }
 
-// ?status= one of REVIEW_STATUSES, ?agentId= one agent. Contributors only
-// ever get their own submissions back, whatever they ask for.
+// ?status= one of REVIEW_STATUSES, ?agentId= one agent. Everyone but the
+// Agent Manager only ever gets their own submissions back, whatever they ask for.
 async function listSubmissions(req, res, next) {
   try {
     const { status, agentId } = req.query;

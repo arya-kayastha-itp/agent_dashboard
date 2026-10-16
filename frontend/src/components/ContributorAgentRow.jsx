@@ -19,10 +19,10 @@ const NEEDS_YOU = {
   rejected: { label: 'Not accepted', color: 'error' },
 };
 
-// One row of a contributor's My Agents table: the same read-only row shape as
-// the Agent Manager's and Executive's lists, with "Send update" expanding the
-// review form underneath — the contributor's version of the manager's inline
-// "Update".
+// One row of My Agents for someone whose updates are reviewed (Contributors,
+// FinOps): the same read-only row shape as the Agent Manager's and
+// Executive's lists, with "Send update" expanding the review form underneath
+// — their version of the manager's inline "Update".
 export default function ContributorAgentRow({ agent, latest }) {
   const navigate = useNavigate();
   const [expanded, setExpanded] = useState(false);

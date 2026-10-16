@@ -99,13 +99,14 @@ export default function AgentQueueRow({ agent, dragHandle, rowRef, rowStyle }) {
 
       {expanded && (
         <TableRow>
-          <TableCell colSpan={AGENT_QUEUE_COLUMN_COUNT} sx={{ p: 0, bgcolor: 'var(--g-surface-2)' }}>
+          {/* Without a drag handle (My Agents) the row has no leading column. */}
+          <TableCell colSpan={AGENT_QUEUE_COLUMN_COUNT - (dragHandle === undefined ? 1 : 0)} sx={{ p: 0, bgcolor: 'var(--g-surface-2)' }}>
             <Box
               component="form"
               onSubmit={handleSave}
               sx={{
                 px: { xs: 2, md: 3 },
-                pl: { md: 9 },
+                pl: { md: dragHandle === undefined ? 3 : 9 },
                 pt: 2.5,
                 pb: 3,
                 borderTop: '1px dashed var(--g-line-2)',

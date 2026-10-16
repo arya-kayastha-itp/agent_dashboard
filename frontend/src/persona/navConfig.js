@@ -7,8 +7,11 @@ const { EXECUTIVE, AGENT_MANAGER, FINOPS, CONTRIBUTOR } = PERSONAS;
 // console / portfolio overview). Pricing and Alert Rules are flagged
 // `configure: true` — occasional setup tasks, so App.jsx renders them in a
 // secondary "Configure" menu instead of as equal-weight top-nav buttons.
+// `onlyWhenAssigned` items show only to people assigned to at least one agent
+// — a contributor's Home already is their My Agents.
 export const NAV_ITEMS = [
   { label: 'Home', path: '/', visibleTo: [EXECUTIVE, AGENT_MANAGER, FINOPS, CONTRIBUTOR] },
+  { label: 'My Agents', path: '/my-agents', visibleTo: [AGENT_MANAGER, FINOPS], onlyWhenAssigned: true },
   { label: 'Review', path: '/review', visibleTo: [AGENT_MANAGER] },
   { label: 'Marketplace', path: '/marketplace', visibleTo: [EXECUTIVE, AGENT_MANAGER] },
   { label: 'Metrics', path: '/insights', visibleTo: [EXECUTIVE] },

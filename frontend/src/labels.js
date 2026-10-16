@@ -22,11 +22,12 @@ export const PERSONA_LABELS = {
   CONTRIBUTOR: 'Contributor',
 };
 
+// Everyone but an Executive also works on the agents they're assigned to.
 export const PERSONA_DESCRIPTIONS = {
-  CONTRIBUTOR: 'Sees every agent; submits updates for the agents they work on',
-  AGENT_MANAGER: 'Reviews updates and manages agents, people and access',
+  CONTRIBUTOR: 'Sees only the agents they’re assigned to and sends updates for review',
+  AGENT_MANAGER: 'Reviews updates and manages agents, people and access. Updates their own agents directly',
   EXECUTIVE: 'Read-only view of the portfolio',
-  FINOPS: 'Pricing, alert rules and cost views',
+  FINOPS: 'Pricing, alert rules and cost views. Sends updates for review on the agents they work on',
 };
 
 export const REVIEW_STATUS_LABELS = {

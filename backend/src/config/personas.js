@@ -8,4 +8,10 @@ const PERSONAS = {
   CONTRIBUTOR: 'CONTRIBUTOR',
 };
 
-module.exports = { PERSONAS, PERSONA_VALUES: Object.values(PERSONAS) };
+// Being assigned to an agent is what makes someone a contributor on it, on
+// top of their role. These roles send their updates to the Agent Manager for
+// review. The Agent Manager updates directly (they're the reviewer), and
+// Executives are view-only even when assigned.
+const SUBMITTING_PERSONAS = [PERSONAS.CONTRIBUTOR, PERSONAS.FINOPS];
+
+module.exports = { PERSONAS, PERSONA_VALUES: Object.values(PERSONAS), SUBMITTING_PERSONAS };

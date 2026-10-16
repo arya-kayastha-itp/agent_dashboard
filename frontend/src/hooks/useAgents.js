@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createAgent, deleteAgent, getAgents, reorderAgents, updateAgent } from '../api/agents.api';
 
-export function useAgents() {
-  return useQuery({ queryKey: ['agents'], queryFn: getAgents });
+export function useAgents({ enabled = true } = {}) {
+  return useQuery({ queryKey: ['agents'], queryFn: getAgents, enabled });
 }
 
 // The Teams page lists which agents each member is on, so anything that

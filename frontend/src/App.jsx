@@ -13,6 +13,7 @@ import DailyUpdateSheetPage from './pages/DailyUpdateSheetPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import HomePage from './pages/HomePage';
 import MarketplacePage from './pages/MarketplacePage';
+import MyAgentsPage from './pages/MyAgentsPage';
 import PersonaLoginPage from './pages/PersonaLoginPage';
 import PortfolioInsightsPage from './pages/PortfolioInsightsPage';
 import PricingAdminPage from './pages/PricingAdminPage';
@@ -64,6 +65,7 @@ export default function App({ onToggleTheme, themeMode }) {
                     <Routes>
                       <Route path="/" element={<HomePage />} />
                       <Route path="/agents" element={<AllAgentsPage />} />
+                      <Route path="/my-agents" element={restricted('/my-agents', <MyAgentsPage />)} />
                       <Route path="/marketplace" element={restricted('/marketplace', <MarketplacePage />)} />
                       <Route path="/insights" element={restricted('/insights', <PortfolioInsightsPage />)} />
                       <Route path="/daily-sheet" element={restricted('/daily-sheet', <DailyUpdateSheetPage />)} />

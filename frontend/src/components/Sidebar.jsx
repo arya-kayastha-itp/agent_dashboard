@@ -1,4 +1,5 @@
 import AssignmentIcon from '@mui/icons-material/Assignment';
+import AssignmentIndIcon from '@mui/icons-material/AssignmentInd';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
@@ -30,10 +31,11 @@ import useMediaQuery from '@mui/material/useMediaQuery';
 import { Fragment, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { PERSONA_LABELS } from '../labels';
+import { useAgents } from '../hooks/useAgents';
 import { useSubmissions } from '../hooks/useSubmissions';
 import { NAV_ITEMS, SHOW_ALERT_BELL } from '../persona/navConfig';
 import { usePersona } from '../persona/PersonaContext';
-import { canReviewUpdates } from '../persona/permissions';
+import { canReviewUpdates, isAssignedTo } from '../persona/permissions';
 import AiGarageLogo from './AiGarageLogo';
 import AlertBell from './AlertBell';
 
@@ -43,6 +45,7 @@ const COLLAPSE_KEY = 'agent-dashboard.sidebarCollapsed';
 
 const NAV_ICONS = {
   '/': HomeIcon,
+  '/my-agents': AssignmentIndIcon,
   '/review': FactCheckIcon,
   '/marketplace': StorefrontIcon,
   '/insights': InsightsIcon,
@@ -95,6 +98,10 @@ export default function Sidebar({ onToggleTheme, themeMode }) {
   // Same query (and cache) as the Review page, so the count stays in step with it.
   const { data: pendingReviews } = useSubmissions({ status: 'pending' }, { enabled: canReviewUpdates(persona) });
   const pendingReviewCount = pendingReviews?.length || 0;
+  // Same agent list (and cache) the pages use — decides whether My Agents shows.
+  const hasAssignedOnlyItems = NAV_ITEMS.some((item) => item.onlyWhenAssigned && item.visibleTo.includes(persona));
+  const { data: agents } = useAgents({ enabled: hasAssignedOnlyItems });
+  const isAssignedToAny = Boolean(agents?.some((agent) => isAssignedTo(agent, user)));
 
   const toggleCollapsed = () => {
     setCollapsed((prev) => {
@@ -109,7 +116,7 @@ export default function Sidebar({ onToggleTheme, themeMode }) {
     navigate('/login');
   };
 
-  const items = NAV_ITEMS.filter((item) => item.visibleTo.includes(persona));
+  const items = NAV_ITEMS.filter((item) => item.visibleTo.includes(persona) && (!item.onlyWhenAssigned || isAssignedToAny));
   const showRail = collapsed && !isNarrow;
   const width = showRail ? COLLAPSED_WIDTH : EXPANDED_WIDTH;
   const personaLabel = PERSONA_LABELS[persona];

@@ -13,21 +13,33 @@ import Typography from '@mui/material/Typography';
 import { useMemo, useState } from 'react';
 import { computeAgentHealth, sortBySeverity, summarizeAgents } from '../agentHealth';
 import AccentMark from '../components/AccentMark';
+import AgentQueueRow from '../components/AgentQueueRow';
 import ContributorAgentRow from '../components/ContributorAgentRow';
 import DashboardSummaryBanner from '../components/DashboardSummaryBanner';
 import ErrorAlert from '../components/ErrorAlert';
 import { useAgents } from '../hooks/useAgents';
 import { usePageTitle } from '../hooks/usePageTitle';
 import { useSubmissions } from '../hooks/useSubmissions';
+import { usePersona } from '../persona/PersonaContext';
+import { canEditAgents, isAssignedTo } from '../persona/permissions';
 
-// The Contributor's Home: the same rollup + worst-first list the Executive
-// and Agent Manager get, but only the agents they're assigned to (the API
-// returns nothing else to a contributor), with "Send update" on each row.
-export default function ContributorHomePage() {
+// The agents you're assigned to: a Contributor's Home, and an extra tab for
+// FinOps people and the Agent Manager when they're assigned to agents too.
+// The same rollup + worst-first list as the other homes. Contributors and
+// FinOps get "Send update" (reviewed before it applies); the Agent Manager
+// gets their usual inline "Update", which applies straight away.
+export default function MyAgentsPage() {
   usePageTitle('My Agents');
-  const { data: agents, isLoading, isError, refetch } = useAgents();
-  const { data: mySubmissions } = useSubmissions();
+  const { persona, user } = usePersona();
+  const updatesDirectly = canEditAgents(persona);
+  const { data: allAgents, isLoading, isError, refetch } = useAgents();
+  // The Agent Manager's submissions list is everyone's, and they don't send any.
+  const { data: mySubmissions } = useSubmissions({}, { enabled: !updatesDirectly });
   const [healthFilter, setHealthFilter] = useState(null);
+
+  // Contributors only get their own agents from the API; everyone else gets
+  // the whole portfolio, so pick out theirs.
+  const agents = useMemo(() => allAgents?.filter((agent) => isAssignedTo(agent, user)), [allAgents, user]);
 
   // Your own newest submission per agent (they arrive newest-first).
   const latestByAgent = useMemo(() => {
@@ -60,7 +72,9 @@ export default function ContributorHomePage() {
                   {`${sentBack} ${sentBack === 1 ? 'update was' : 'updates were'} sent back for changes. `}
                 </Box>
               )}
-              Updates you send are reviewed by the Agent Manager before the dashboard changes.
+              {updatesDirectly
+                ? 'Your updates apply straight away.'
+                : 'Updates you send are reviewed by the Agent Manager before the dashboard changes.'}
             </>
           ) : (
             ' '
@@ -77,7 +91,11 @@ export default function ContributorHomePage() {
       {isError && <ErrorAlert onRetry={refetch}>Failed to load your agents.</ErrorAlert>}
 
       {agents && agents.length === 0 && (
-        <Alert severity="info">No agents are assigned to you yet. Ask your Agent Manager to add you to the agents you work on.</Alert>
+        <Alert severity="info">
+          {updatesDirectly
+            ? "You're not assigned to any agents. Add yourself as an assignee on an agent to see it here."
+            : 'No agents are assigned to you yet. Ask your Agent Manager to add you to the agents you work on.'}
+        </Alert>
       )}
 
       {agents && agents.length > 0 && (
@@ -100,9 +118,13 @@ export default function ContributorHomePage() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {visible.map((agent) => (
-                  <ContributorAgentRow key={agent.id} agent={agent} latest={latestByAgent.get(agent.id)} />
-                ))}
+                {visible.map((agent) =>
+                  updatesDirectly ? (
+                    <AgentQueueRow key={agent.id} agent={agent} />
+                  ) : (
+                    <ContributorAgentRow key={agent.id} agent={agent} latest={latestByAgent.get(agent.id)} />
+                  ),
+                )}
               </TableBody>
             </Table>
           </TableContainer>
