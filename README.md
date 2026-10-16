@@ -115,7 +115,7 @@ npm test                    # unit tests — no database needed
 npm run test:integration    # end-to-end API suites against Databricks (10–20 min)
 ```
 
-The integration suites create and delete their own people and agents, so they only run when `DATABRICKS_SCHEMA` ends in `-test` (`agent-dashboard-test`) — they refuse to touch the live schema. GitHub Actions runs the unit tests, lint and builds on every push, and the integration suites on pull requests into `main` once the `DATABRICKS_HOST`, `DATABRICKS_TOKEN` and `DATABRICKS_HTTP_PATH` repository secrets are set. Details in [backend/README.md](backend/README.md#tests).
+The integration suites create and delete their own people and agents, so they only run when `DATABRICKS_SCHEMA` ends in `-test` (`agent-dashboard-test`) — they refuse to touch the live schema. Run them locally before every deploy. GitHub Actions runs the unit tests, lint and builds on every push; it has no Databricks access by design (no secrets in the repo). Details in [backend/README.md](backend/README.md#tests).
 
 ## Deployment (Azure)
 
