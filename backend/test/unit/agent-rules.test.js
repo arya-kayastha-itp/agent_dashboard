@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { needsBlockerDetails, requireBlockerDetails, requireEtaReason, isLater, cleanText } = require('../src/services/agent-rules.service');
+const { needsBlockerDetails, requireBlockerDetails, requireEtaReason, isLater, cleanText } = require('../../src/services/agent-rules.service');
 
 test('becoming Blocked needs both a reason and who can unblock it', () => {
   assert.equal(needsBlockerDetails({ fromStatus: 'In Progress', toStatus: 'Blocked' }), true);

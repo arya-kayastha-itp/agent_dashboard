@@ -34,8 +34,10 @@ export default function ForgotPasswordPage() {
       await requestPasswordReset(email);
       setRequestError(null);
       setSentTo(email);
-    } catch {
-      setRequestError('Something went wrong. Please try again.');
+    } catch (err) {
+      // Too many requests from this network gets its own "wait a few minutes".
+      const rateLimited = err?.response?.status === 429 && err.response.data?.error?.message;
+      setRequestError(rateLimited || 'Something went wrong. Please try again.');
     }
   };
 

@@ -8,6 +8,8 @@
   ],
   "scripts": {
     "dev": "concurrently -n backend,frontend -c blue,green \"npm:dev --workspace backend\" \"npm:dev --workspace frontend\"",
+    "test": "npm test --workspace backend",
+    "test:integration": "npm run test:integration --workspace backend",
     "migrate": "npm run migrate:databricks --workspace backend",
     "seed": "npm run seed:databricks --workspace backend",
     "db:backup": "node scripts/backup-db.js",

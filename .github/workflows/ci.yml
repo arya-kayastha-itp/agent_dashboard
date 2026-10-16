@@ -1,0 +1,82 @@
+name: CI
+
+# Every push: unit tests, lint, frontend build, Docker image build — no secrets
+# needed. Pull requests into main (and manual runs): the integration suites
+# against the Databricks TEST schema, which need the repository secrets
+# DATABRICKS_HOST, DATABRICKS_TOKEN and DATABRICKS_HTTP_PATH (see README).
+on:
+  push:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Unit tests, lint and build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Backend unit tests
+        run: npm test --workspace backend
+      - name: Frontend lint
+        run: npm run lint --workspace frontend
+      - name: Frontend build
+        run: npm run build --workspace frontend
+      - name: Docker image builds
+        run: docker build --tag agent-dashboard:ci .
+
+  integration:
+    name: Integration tests (Databricks test schema)
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    # The suites share one test schema — never run two at once.
+    concurrency:
+      group: databricks-test-schema
+      cancel-in-progress: false
+    env:
+      DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+      DATABRICKS_HTTP_PATH: ${{ secrets.DATABRICKS_HTTP_PATH }}
+      DATABRICKS_CATALOG: dbx-ai-agents
+      # Hard-coded on purpose: these tests write data, so they only ever
+      # point at the test schema (the suites also refuse anything else).
+      DATABRICKS_SCHEMA: agent-dashboard-test
+    steps:
+      - name: Check for Databricks secrets
+        id: secrets
+        run: |
+          if [ -z "$DATABRICKS_TOKEN" ] || [ -z "$DATABRICKS_HOST" ] || [ -z "$DATABRICKS_HTTP_PATH" ]; then
+            echo "::notice::Integration tests skipped: add the DATABRICKS_HOST, DATABRICKS_TOKEN and DATABRICKS_HTTP_PATH repository secrets to run them."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v4
+        if: steps.secrets.outputs.configured == 'true'
+      - uses: actions/setup-node@v4
+        if: steps.secrets.outputs.configured == 'true'
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+        if: steps.secrets.outputs.configured == 'true'
+      - name: Sign test sessions with a throwaway secret
+        if: steps.secrets.outputs.configured == 'true'
+        run: echo "JWT_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+      - name: Apply any new migrations to the test schema
+        if: steps.secrets.outputs.configured == 'true'
+        run: npm run migrate:databricks --workspace backend
+      - name: Integration tests
+        if: steps.secrets.outputs.configured == 'true'
+        run: npm run test:integration --workspace backend

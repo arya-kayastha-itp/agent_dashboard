@@ -1,6 +1,7 @@
 const express = require('express');
 const controller = require('../controllers/finops.controller');
 const { authenticate, requirePersona } = require('../middleware/auth');
+const { limits } = require('../middleware/rateLimit');
 const { PERSONAS } = require('../config/personas');
 const { validateBody } = require('../middleware/validate');
 const { usageLogSchema, batchEnvelopeSchema, createPricingSchema, upsertThresholdSchema, alertPatchSchema } = require('../validators/finops.schema');
@@ -9,9 +10,10 @@ const router = express.Router();
 
 // Usage ingestion is called by running agents themselves, not by a logged-in
 // dashboard user — no persona session to check here, so it stays open ahead
-// of the authenticate() gate below.
-router.post('/usage-logs', validateBody(usageLogSchema), controller.ingestUsageLog);
-router.post('/usage-logs/batch', validateBody(batchEnvelopeSchema), controller.ingestUsageLogsBatch);
+// of the authenticate() gate below, rate-limited per IP until 2b's per-agent
+// API keys.
+router.post('/usage-logs', limits.usageIngest(), validateBody(usageLogSchema), controller.ingestUsageLog);
+router.post('/usage-logs/batch', limits.usageIngestBatch(), validateBody(batchEnvelopeSchema), controller.ingestUsageLogsBatch);
 
 // Everything else here is FinOps-only dashboard UI (navConfig.js).
 router.use(authenticate, requirePersona(PERSONAS.FINOPS));

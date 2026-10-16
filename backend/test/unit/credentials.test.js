@@ -6,7 +6,7 @@ const {
   burnPasswordCheck,
   newOneTimeToken,
   hashOneTimeToken,
-} = require('../src/services/credentials.service');
+} = require('../../src/services/credentials.service');
 
 test('a hashed password verifies, and a wrong one does not', async () => {
   const stored = await hashPassword('correct horse battery');

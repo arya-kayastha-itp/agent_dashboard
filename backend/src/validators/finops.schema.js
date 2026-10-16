@@ -26,9 +26,11 @@ const usageLogSchema = z
   });
 
 // Batch entries are validated one-by-one inside the service (not here) so one
-// malformed entry doesn't reject the whole request — this only checks the envelope shape.
+// malformed entry doesn't reject the whole request — this only checks the
+// envelope shape, and caps its size.
+const MAX_BATCH_ENTRIES = 500;
 const batchEnvelopeSchema = z.object({
-  entries: z.array(z.unknown()).min(1),
+  entries: z.array(z.unknown()).min(1).max(MAX_BATCH_ENTRIES),
 });
 
 const createPricingSchema = z.object({
@@ -56,6 +58,7 @@ const alertPatchSchema = z.object({
 });
 
 module.exports = {
+  MAX_BATCH_ENTRIES,
   ERROR_CATEGORIES,
   ALERT_TYPES,
   ALERT_STATUSES,

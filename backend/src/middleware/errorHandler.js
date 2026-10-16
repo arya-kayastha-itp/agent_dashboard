@@ -16,6 +16,14 @@ function errorHandler(err, req, res, next) {
     return res.status(400).json({ error: { message: err.message || 'Referenced record does not exist', code: 'FOREIGN_KEY_VIOLATION' } });
   }
 
+  // express.json() rejections carry a `type`, not a `code`.
+  if (err.type === 'entity.too.large') {
+    return res.status(413).json({ error: { message: 'Request body is too large', code: 'PAYLOAD_TOO_LARGE' } });
+  }
+  if (err.type === 'entity.parse.failed') {
+    return res.status(400).json({ error: { message: 'Request body is not valid JSON', code: 'INVALID_JSON' } });
+  }
+
   const status = err.status || 500;
   return res.status(status).json({ error: { message: err.message || 'Internal server error', code: err.code || 'INTERNAL_ERROR' } });
 }

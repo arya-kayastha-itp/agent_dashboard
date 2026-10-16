@@ -116,6 +116,15 @@ npm run migrate:databricks --workspace backend
 npm run seed:databricks --workspace backend       # optional, local sample data
 ```
 
-## Linting / tests
+## Rate and size limits
 
-No dedicated backend lint script exists yet. `npm test --workspace backend` runs the unit tests in `test/` with Node's built-in runner (password hashing and link tokens so far). `node -e "require('./src/app.js')"` is a quick sanity check that the app boots without a syntax/require error.
+The endpoints reachable without signing in are rate-limited per client IP by `middleware/rateLimit.js` (in-memory fixed windows, fine for the single replica): sign-in 20 per 15 minutes, forgot-password 5, link check / set-password 30, usage ingestion 600 per minute and batches 60 per minute. Over the limit is a 429 `RATE_LIMITED` with `Retry-After`. Sign-in also has the per-account lockout. `app.set('trust proxy', 1)` makes `req.ip` the client address the Container Apps ingress forwards. JSON bodies are capped at 256kb (413 `PAYLOAD_TOO_LARGE`) and a usage batch at 500 entries. `RATE_LIMITS=off` turns the limiters off (the integration tests do this).
+
+## Tests
+
+No dedicated backend lint script exists yet. Tests use Node's built-in runner:
+
+- `npm test --workspace backend` — unit tests in `test/unit/`, no database: password hashing and link tokens, audit diffs, the blocker/date rules, the rate limiter, and `request-guards.test.js`, which loads the real app and checks the size, JSON and rate limits in front of the signed-out endpoints (so it also catches an app that won't boot).
+- `npm run test:integration --workspace backend` — suites in `test/integration/` that run the app in-process against Databricks: accounts, submit and review, contributor visibility, audit log, blockers and target dates, usage intake. They **write data**, so `helpers.js` refuses to run unless `DATABRICKS_SCHEMA` ends in `-test` — locally that's `agent-dashboard-test`, never the live schema. They act as a dedicated Agent Manager, `e2e.manager@example.com` (created in the test schema on first run; its password is never reset, sessions are signed directly so parallel runs don't sign each other out), create their own people and agents with unique names, and delete them afterwards. A run that's cut off midway (network drop, cancelled job) can't clean up, so each suite first removes test data more than two hours old: agents the test manager created, and people whose names end in a run stamp with no account or an `@example.com` one. Email is forced off and rate limits disabled for the run. Expect 10–20 minutes — every request is a warehouse round trip.
+
+CI (`.github/workflows/ci.yml`) runs the unit tests, frontend lint and build, and a Docker build on every push; on pull requests into `main` it also applies any new migrations to the test schema and runs the integration suites (one run at a time). Those need the `DATABRICKS_HOST`, `DATABRICKS_TOKEN` and `DATABRICKS_HTTP_PATH` repository secrets — without them the job is skipped with a notice. Catalog and schema are fixed in the workflow.

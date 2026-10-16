@@ -16,8 +16,14 @@ const { notFoundHandler, errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
 
+// Container Apps ingress sits in front and adds X-Forwarded-For — trust that
+// one hop so req.ip (which the rate limits key on) is the real client.
+app.set('trust proxy', 1);
+
 app.use(cors({ origin: env.corsOrigin }));
-app.use(express.json());
+// Up from express's 100kb default so a full usage-log batch (500 entries)
+// fits; anything bigger gets a 413.
+app.use(express.json({ limit: '256kb' }));
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 

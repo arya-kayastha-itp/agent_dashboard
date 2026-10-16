@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { diff } = require('../src/services/audit.service');
+const { diff } = require('../../src/services/audit.service');
 
 const FIELDS = ['status', 'progress', 'statusDescription', 'eta'];
 

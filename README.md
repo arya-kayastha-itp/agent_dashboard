@@ -108,6 +108,15 @@ Portfolio Insights is deliberately hidden from Agent Manager — it's aggregate 
    - Backend: http://localhost:4000/api/health
    - Frontend: http://localhost:5174
 
+## Tests
+
+```
+npm test                    # unit tests — no database needed
+npm run test:integration    # end-to-end API suites against Databricks (10–20 min)
+```
+
+The integration suites create and delete their own people and agents, so they only run when `DATABRICKS_SCHEMA` ends in `-test` (`agent-dashboard-test`) — they refuse to touch the live schema. GitHub Actions runs the unit tests, lint and builds on every push, and the integration suites on pull requests into `main` once the `DATABRICKS_HOST`, `DATABRICKS_TOKEN` and `DATABRICKS_HTTP_PATH` repository secrets are set. Details in [backend/README.md](backend/README.md#tests).
+
 ## Deployment (Azure)
 
 Live at https://agent-dashboard.ambitioussky-c28d301a.eastus.azurecontainerapps.io
