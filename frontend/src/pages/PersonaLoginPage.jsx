@@ -9,6 +9,7 @@ import { useForm } from 'react-hook-form';
 import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import { login } from '../api/auth.api';
 import AuthLayout from '../components/AuthLayout';
+import PasswordField from '../components/PasswordField';
 import { usePageTitle } from '../hooks/usePageTitle';
 import { usePersona } from '../persona/PersonaContext';
 
@@ -54,9 +55,8 @@ export default function PersonaLoginPage() {
             {...register('email', { required: true })}
           />
 
-          <TextField
+          <PasswordField
             label="Password"
-            type="password"
             autoComplete="current-password"
             required
             fullWidth

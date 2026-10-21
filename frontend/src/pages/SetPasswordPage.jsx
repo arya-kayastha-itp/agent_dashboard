@@ -4,7 +4,6 @@ import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
 import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
-import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
@@ -12,6 +11,7 @@ import { useForm } from 'react-hook-form';
 import { Link as RouterLink, useNavigate, useSearchParams } from 'react-router-dom';
 import { describeLink, setPassword } from '../api/auth.api';
 import AuthLayout from '../components/AuthLayout';
+import PasswordField from '../components/PasswordField';
 import { PASSWORD_MIN_LENGTH } from '../constants';
 import { usePageTitle } from '../hooks/usePageTitle';
 import { usePersona } from '../persona/PersonaContext';
@@ -115,9 +115,8 @@ export default function SetPasswordPage() {
           {/* Lets password managers save the new password against the right account. */}
           <input type="email" name="username" autoComplete="username" value={link.email} readOnly hidden />
 
-          <TextField
+          <PasswordField
             label="New password"
-            type="password"
             autoComplete="new-password"
             autoFocus
             required
@@ -130,9 +129,8 @@ export default function SetPasswordPage() {
             })}
           />
 
-          <TextField
+          <PasswordField
             label="Confirm password"
-            type="password"
             autoComplete="new-password"
             required
             fullWidth
